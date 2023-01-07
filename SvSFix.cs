@@ -1,32 +1,19 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
-using Game.UI;
 using Game.UI.Config;
-using Game.UI.KeyAssign.Local;
 using Game.UI.MainMenu;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using Game.UI.MainMenu.Local;
 using IF.Steam;
-using IF.Utility.Helpers;
 using KingKrouch.Utility.Helpers;
 using Steamworks;
 using SvSFix.Controllers;
 using SvSFix.ResolutionClasses;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.DualShock;
-using UnityEngine.InputSystem.Switch;
-using UnityEngine.InputSystem.XInput;
-using Logger = BepInEx.Logging.Logger;
 
 namespace SvSFix
 {
