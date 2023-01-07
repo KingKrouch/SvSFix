@@ -1,9 +1,14 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using Game.UI;
+using Game.UI.Config;
+using Game.UI.KeyAssign.Local;
 using Game.UI.MainMenu;
 using HarmonyLib;
 using UnityEngine;
@@ -12,9 +17,11 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using Game.UI.MainMenu.Local;
 using IF.Steam;
+using IF.Utility.Helpers;
 using KingKrouch.Utility.Helpers;
 using Steamworks;
 using SvSFix.Controllers;
+using SvSFix.ResolutionClasses;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.DualShock;
 using UnityEngine.InputSystem.Switch;
@@ -168,16 +175,16 @@ namespace SvSFix
         {
             var cameras = FindObjectsOfType<Camera>();
             foreach (var c in cameras)
-            {
-                if (c.transform.parent.gameObject.GetComponent<SystemCamera3D>() != null) { // Check if SystemCamera3D.
-                    c.gateFit = Camera.GateFitMode.Overscan; // If not, then overwrite the overscan function.
+            { // TODO: Figure out how to stop the NullReferenceException errors. This logic otherwise seems to work.
+                if (c.transform.parent.gameObject.GetComponent<SystemCamera3D>() == null) { // Check if SystemCamera3D doesn't exist. We don't want to overwrite this if the user doesn't opt to use Major Axis Scaling but also wants pillarboxed cutscenes.
+                    c.gateFit = Camera.GateFitMode.Overscan; // If it doesn't, then overwrite the Gate Fit Mode to use Overscan Scaling.
                 }
             }
         }
         
         private void FixedUpdate() // We only need to do this a certain amount of times per second.
         {
-            //if (bMajorAxisFOVScaling.Value == true || bPresentCutscenesWithOriginalAspectRatio.Value == true) { // TODO: Add some extra fail-safes to prevent the gameplay camera from being explicitly written to, so you can have pillarboxed cutscenes while having Hor+ gameplay.
+            //if (bMajorAxisFOVScaling.Value == true || bPresentCutscenesWithOriginalAspectRatio.Value == true) {
                 //UpdateCutsceneCameras();
             //}
         }
@@ -192,10 +199,10 @@ namespace SvSFix
             InitConfig();
             LoadGraphicsSettings(); //TODO: Figure out why this is spitting an error
             // Creates our custom components, and prints a log statement if it failed or not.
-            var createdPillarboxes = CreatePillarboxes();
-            if (createdPillarboxes) {
-                Log.LogInfo("Created Pillarbox Actor.");
-                Harmony.CreateAndPatchAll(typeof(BlackBarActorFunctionality));
+            var createdBlackBarActor = CreateBlackBars();
+            if (createdBlackBarActor) {
+                Log.LogInfo("Adding BlackBarController Hooks.");
+                Harmony.CreateAndPatchAll(typeof(BlackBarControllerFunctionality));
             }
             //else { Log.LogError("Couldn't create Pillarbox Actor."); }
             var createdFramelimiter = InitializeFramelimiter();
@@ -229,29 +236,46 @@ namespace SvSFix
             return true;
         }
 
-        private static bool CreatePillarboxes()
+        private static bool CreateBlackBars()
         {
             // Creates our BlackBarController prefab by hooking into Unity's AssetBundles system.
             var path = @"BepInEx\content\svsfix_content";
             var bundle = AssetBundle.LoadFromFile(path);
-            var names = bundle.GetAllAssetNames();
-            Debug.Log(bundle.GetAllAssetNames());
-            var prefab = bundle.LoadAsset<GameObject>(names[0]);
-            GameObject blackBarController = Instantiate(prefab, new Vector3(0, 0, 0), Quaternion.identity);
-            DontDestroyOnLoad(blackBarController);
-            // Creates the Controller component script manually, and then fixes some of the variables that need references.
-            controllerComponent = blackBarController.AddComponent<BlackBarController>();
-            controllerComponent.letterboxTop = (Image)prefab.transform.Find("Letterbox/Top")
-                .GetComponentInChildren(typeof(Image), true);
-            controllerComponent.letterboxBottom = (Image)prefab.transform.Find("Letterbox/Bottom")
-                .GetComponentInChildren(typeof(Image), true);
-            controllerComponent.pillarboxLeft = (Image)prefab.transform.Find("Pillarbox/Left")
-                .GetComponentInChildren(typeof(Image), true);
-            controllerComponent.pillarboxRight = (Image)prefab.transform.Find("Pillarbox/Right")
-                .GetComponentInChildren(typeof(Image), true);
-            controllerComponent.opacity = 1.0f;
-            return true;
-            
+            if (bundle != null)
+            {
+                var names = bundle.GetAllAssetNames();
+                Debug.Log(bundle.GetAllAssetNames());
+                var prefab = bundle.LoadAsset<GameObject>(names[0]);
+                GameObject blackBarController = Instantiate(prefab, new Vector3(0, 0, 0), Quaternion.identity);
+                DontDestroyOnLoad(blackBarController);
+                // Creates the Controller component script manually, and then fixes some of the variables that need references.
+                controllerComponent = blackBarController.AddComponent<BlackBarController>();
+                controllerComponent.letterboxTop = (Image)prefab.transform.Find("Letterbox/Top")
+                    .GetComponentInChildren(typeof(Image), true);
+                controllerComponent.letterboxBottom = (Image)prefab.transform.Find("Letterbox/Bottom")
+                    .GetComponentInChildren(typeof(Image), true);
+                controllerComponent.pillarboxLeft = (Image)prefab.transform.Find("Pillarbox/Left")
+                    .GetComponentInChildren(typeof(Image), true);
+                controllerComponent.pillarboxRight = (Image)prefab.transform.Find("Pillarbox/Right")
+                    .GetComponentInChildren(typeof(Image), true);
+                controllerComponent.opacity = 1.0f;
+                Log.LogInfo("Created BlackBarController Actor.");
+                return true;
+            }
+            else {
+                Log.LogError("Couldn't Spawn BlackBarController Actor.");
+                return false;
+            }
+        }
+
+        public static void CreateNewPromptImages()
+        {
+            Sprite button_sankaku_new = new Sprite();
+            Sprite button_sikaku_new  = new Sprite();
+            Sprite button_batu_new    = new Sprite();
+            Sprite button_maru_new    = new Sprite();
+            // GameUiKeyAssign/Canvas/Root/Frame0/Trunk/Node(Clone)/Pad/Key/Icon is what needs it's image reference modified to point to our own sprites rather than the game's.
+            // GameUiKeyAssignParts.Node.list_sprites_ seemingly contains a list of sprites
         }
 
         private static void LoadGraphicsSettings()
@@ -307,7 +331,7 @@ namespace SvSFix
         }
 
         [HarmonyPatch]
-        public class BlackBarActorFunctionality
+        public class BlackBarControllerFunctionality
         {
             [HarmonyPatch(typeof(GameUiMainMenuController), nameof(GameUiMainMenuController.Close), new Type[]{typeof(bool)})]
             [HarmonyPostfix]
@@ -375,6 +399,15 @@ namespace SvSFix
                 return true;
             }
 
+            //[HarmonyPatch(typeof(GameScreen), nameof(GameScreen.EnumPattern), MethodType.Enumerator)]
+            //[HarmonyTranspiler]
+            //static IEnumerator customEnumPattern()
+            //{
+                
+            //}
+            
+            //[HarmonyPatch(typeof(GameScreen), nameof(CalcSelectablePatternsCount))]
+
             //static GameScreen()
             //{
             //List<ResolutionManager.resolution> list = ResolutionManager.ScreenResolutions().ToList<ResolutionManager.resolution>();
@@ -387,50 +420,22 @@ namespace SvSFix
             //GameScreen.selectable_patterns_count_ = (uint)list.Count;
             //}
 
-            //[HarmonyPatch(typeof(GameUiConfigScreenResolutionList), "Entry")] // Modify Screen Resolution Selection
-            //[HarmonyPrefix]
-            //public static void CustomResolutions(GameUiConfigScreenResolutionList __instance)
-            //{
-            //GameUiConfigDropDownList.Local local_ = __instance.local_;
-            //if (local_ != null)
-            //{
-            //local_.Heading.Renew(StrInterface.UI_CONFIG_LIST_GENERAL_SCREEN_RESOLUTION);
-            //}
-
-            //GameUiConfigDropDownList.Local local_2 = __instance.local_;
-            //if (((local_2 != null) ? local_2.Listing : null) == null)
-            //{
-            //return;
-            //}
-
-            //OSB.GetShared();
-            //string @string = GameUiAccessor.GetString(StrInterface.UI_CONFIG_PARAM_RESOLUTION);
-            //List<ResolutionManager.resolution> list = ResolutionManager.ScreenResolutions().ToList<ResolutionManager.resolution>();
-            //for (int i = 0; i < list.Count; i++)
-            //{
-            //__instance.local_.Listing.Add(OSB.Start.AppendFormat(@string, list[i].width, list[i].height));
-            //}
-            //__instance.local_.Entry();
-            //}
-            //[HarmonyPatch(typeof(GameScreen), "CalcSelectablePatternsCount")]
-            //[HarmonyPrefix]
-            //public static uint NewCalcSelectablePatternsCount(GameScreen __instance)
-            //{
-            //List<ResolutionManager.resolution> list = ResolutionManager.ScreenResolutions().ToList<ResolutionManager.resolution>();
-            //Resolution[] resolutions = Screen.resolutions;
-            //if (((resolutions != null) ? resolutions.Length : 0) <= 0) {
-            //return 0U;
-            //}
-            //int num = resolutions.Length;
-            //Vector2Int zero = Vector2Int.zero;
-            //GameScreen.Pattern[] array = __instance.patterns_;
-            //int num2 = (array != null) ? array.Length : 0;
-            //if (0 >= num2--) {
-            //return (uint)list.Count;
-            //}
-            //Vector2Int size = __instance.patterns_[num2].Size;
-            //return (uint)list.Count;
-            //}
+            [HarmonyPatch(typeof(GameUiConfigScreenResolutionList), "Entry")] // Modify Screen Resolution Selection
+            [HarmonyPrefix]
+            public static bool CustomResolutions()
+            {
+                var c = FindObjectsOfType<GameUiConfigScreenResolutionList>();
+                Log.LogInfo("Found " + c[0].name + " possessing a GameUiConfigScreenResolutionList component.");
+                var newResList = c[0].gameObject.AddComponent(typeof(CustomConfigScreenResolutionList)) as CustomConfigScreenResolutionList;
+                var ogResList  = c[0].gameObject.GetComponent(typeof(GameUiConfigScreenResolutionList)) as GameUiConfigScreenResolutionList;
+                newResList.Entry();
+                if (ogResList != null) {
+                    ogResList.enabled = false; // Would probably be better if we just disabled the original component.
+                }
+                return false;
+            }
+            
+            
         }
 
         [HarmonyPatch]
@@ -450,19 +455,24 @@ namespace SvSFix
         [HarmonyPatch]
         public class FrameratePatches
         {
-            // TODO: Fix TargetFramerateFix and ScaledDeltaTimeFix.
-            //[HarmonyPatch(typeof(GameTime), nameof(GameTime.TargetFrameRate))]
-            //[HarmonyPostfix]
-            //public static void TargetFramerateFix()
-            //{
-                //Application.targetFrameRate = 0; // Disables the 30FPS limiter that takes place when VSync is disabled. We will be using our own framerate limiting logic anyways.
-                //QualitySettings.vSyncCount = SvSFix.bVSync.Value ? 1 : 0;
-            //}
+            [HarmonyPatch(typeof(GameFrame), nameof(GameFrame.SetGameSceneFrameRateTarget), new Type[] { typeof(GameScene) })]
+            [HarmonyPrefix]
+            public static bool ModifyFramerateTarget()
+            {
+                Application.targetFrameRate = 0; // Disables the 60FPS limiter that takes place when VSync is disabled. We will be using our own framerate limiting logic anyways.
+                QualitySettings.vSyncCount = SvSFix.bVSync.Value ? 1 : 0;
+                GameFrame.now_target_frame_ = 0;
+                GameTime.TargetFrameRate = 0;
+                return false;
+            }
+
+            // TODO: Fix ScaledDeltaTimeFix.
             //[HarmonyPatch(typeof(GameTime), nameof(GameTime.ScaledDeltaTime))]
             //[HarmonyPostfix]
-            //public static float ScaledDeltaTimeFix()
+            //public static float ScaledDeltaTimeFix(ref float __result) // This should in theory partially allow for time dilation adjustments during gameplay, if we want DMC-esque Turbo Mode.
             //{
-                //return Time.deltaTime * Time.timeScale;
+                //Debug.Log("Hooked ScaledDeltaTime.");
+                //return __result * GameTime.Speed;
             //}
             
             [HarmonyPatch(typeof(MapUnitCollisionCharacterControllerComponent), "FixedUpdate")]
@@ -473,42 +483,46 @@ namespace SvSFix
                 return false; // We are simply going to tell FixedUpdate to fuck off, and then reimplement everything in an Update method.
             }
             
-            [HarmonyPatch(typeof(MapUnitCollisionCharacterControllerComponent), nameof(MapUnitCollisionCharacterControllerComponent.Setup), new Type[]{typeof(GameObject), typeof(float), typeof(float), typeof(MapUnitBaseComponent)})]
+            [HarmonyPatch(typeof(MapUnitCollisionCharacterControllerComponent), nameof(MapUnitCollisionCharacterControllerComponent.Setup), new Type[]{ typeof(GameObject), typeof(float), typeof(float), typeof(MapUnitBaseComponent) })]
             [HarmonyPostfix]
             public static void ReplaceWithCustomCharacterControllerComponent()
             {
                 Log.LogInfo("Hooked!");
-                //Log.LogInfo(__instance.transform.parent.gameObject.name);
-                //var parentGameObject = __instance.transform.parent.gameObject;
-                //Log.LogInfo("Found " + parentGameObject.name + " possessing a CharacterController component.");
-                //var newMuc = parentGameObject.AddComponent( typeof(CustomMapUnitController)) as CustomMapUnitController;
-                //if (newMuc == null) { Log.LogError("New Custom Character Controller Component returned null."); return; }
-                //newMuc.character_controller_                   = __instance.character_controller_;
-                //newMuc.collision_                              = __instance.collision_;
-                //newMuc.rigid_body_                             = __instance.rigid_body_;
-                //newMuc.character_controller_unit_radius_scale_ = __instance.character_controller_unit_radius_scale_;
-                //__instance.enabled = false; // Would probably be better if we just disabled the original component.
+                // This may or may not work properly. Normally I'd get the instance per HarmonyX's documentation, but that doesn't work here for some arbitrary reason.
+                var c = FindObjectsOfType<MapUnitCollisionCharacterControllerComponent>();
+                Log.LogInfo("Found " + c[0].name + " possessing a CharacterController component.");
+                var newMuc = c[0].gameObject.AddComponent(typeof(CustomMapUnitController)) as CustomMapUnitController;
+                var ogMuc  = c[0].gameObject.GetComponent(typeof(MapUnitCollisionCharacterControllerComponent)) as MapUnitCollisionCharacterControllerComponent;
+                if (ogMuc == null) { Log.LogError("Original Character Controller Component returned null."); return; }
+                // Copies the properties of the original component before we opt out of using it, and use our own.
+                newMuc.character_controller_                   = ogMuc.character_controller_;
+                newMuc.collision_                              = ogMuc.collision_;
+                newMuc.rigid_body_                             = ogMuc.rigid_body_;
+                newMuc.character_controller_unit_radius_scale_ = ogMuc.character_controller_unit_radius_scale_;
+                ogMuc.enabled = false; // Would probably be better if we just disabled the original component.
+                
             }
 
-            [HarmonyPatch(typeof(MapUnitCollisionRigidbodyComponent), nameof(MapUnitCollisionRigidbodyComponent.Setup), new Type[]{typeof(GameObject), typeof(float), typeof(float), typeof(MapUnitBaseComponent)})]
+            [HarmonyPatch(typeof(MapUnitCollisionRigidbodyComponent), nameof(MapUnitCollisionRigidbodyComponent.Setup), new Type[]{ typeof(GameObject), typeof(float), typeof(float), typeof(MapUnitBaseComponent) })]
             [HarmonyPostfix]
             public static void ReplaceWithCustomRigidBodyComponent()
             {
                 Log.LogInfo("Hooked!");
-                //Log.LogInfo(__instance.transform.parent.gameObject.name);
-                //var parentGameObject = __instance.transform.parent.gameObject;
-                //Log.LogInfo("Found " + parentGameObject.name + " possessing a RigidBodyController component.");
-                //var newRbc = parentGameObject.AddComponent( typeof(CustomRigidBodyController)) as CustomRigidBodyController;
-                //if (newRbc == null) { Log.LogError("New Custom Rigid Body Component returned null."); return; }
-                // Copies the properties of the original component before we destroy it, and use our own.
-                //newRbc.collision_ = __instance.collision_;
-                //newRbc.character_controller_unit_radius_scale_ = __instance.character_controller_unit_radius_scale_;
-                //newRbc.extrusion_speed_ = __instance.extrusion_speed_;
-                //newRbc.hit_extrusion_count_ = __instance.hit_extrusion_count_;
-                //newRbc.hit_extrusion_move_vector_power_ = __instance.hit_extrusion_move_vector_power_;
-                //newRbc.hit_extrusion_vector_ = __instance.hit_extrusion_vector_;
-                //newRbc.rigidbody_component_ = __instance.rigidbody_component_;
-                //__instance.enabled = false; // Would probably be better if we just disabled the original component.
+                // This may or may not work properly. Normally I'd get the instance per HarmonyX's documentation, but that doesn't work here for some arbitrary reason.
+                var c = FindObjectsOfType<MapUnitCollisionRigidbodyComponent>();
+                Log.LogInfo("Found " + c[0].name + " possessing a RigidBodyController component.");
+                var newRbc = c[0].gameObject.AddComponent( typeof(CustomRigidBodyController)) as CustomRigidBodyController;
+                var ogRbc  = c[0].gameObject.GetComponent(typeof(MapUnitCollisionRigidbodyComponent)) as MapUnitCollisionRigidbodyComponent;
+                if (newRbc == null) { Log.LogError("Original Rigid Body Component returned null."); return; }
+                // Copies the properties of the original component before we opt out of using it, and use our own.
+                newRbc.collision_ = ogRbc.collision_;
+                newRbc.character_controller_unit_radius_scale_ = ogRbc.character_controller_unit_radius_scale_;
+                newRbc.extrusion_speed_ = ogRbc.extrusion_speed_;
+                newRbc.hit_extrusion_count_ = ogRbc.hit_extrusion_count_;
+                newRbc.hit_extrusion_move_vector_power_ = ogRbc.hit_extrusion_move_vector_power_;
+                newRbc.hit_extrusion_vector_ = ogRbc.hit_extrusion_vector_;
+                newRbc.rigidbody_component_ = ogRbc.rigidbody_component_;
+                ogRbc.enabled = false; // Would probably be better if we just disabled the original component.
             }
         }
     }
