@@ -91,12 +91,12 @@ public class InputManager : MonoBehaviour
                 ActionOrigins.originRs        = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightStick_Move);
                 ActionOrigins.originLb        = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftBumper);
                 ActionOrigins.originLt        = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftTrigger_Pull);
-                if (ActionOrigins.originLt == null) {
+                if (ActionOrigins.originLt == EInputActionOrigin.k_EInputActionOrigin_None) {
                     ActionOrigins.originLt    = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftTrigger_Click);
                 }
                 ActionOrigins.originRb        = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightBumper);
                 ActionOrigins.originRt        = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightTrigger_Pull);
-                if (ActionOrigins.originRt == null) {
+                if (ActionOrigins.originRt == EInputActionOrigin.k_EInputActionOrigin_None) {
                     ActionOrigins.originRt    = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightTrigger_Click);
                 }
                 ActionOrigins.originStart     = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_Menu);

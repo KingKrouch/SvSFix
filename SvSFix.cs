@@ -334,15 +334,15 @@ namespace SvSFix
             // 2. Add camera tilting to Photo Mode
             // 3. Add a Steam Screenshot hook to the Photo Mode screenshot feature.
             // 4. Add character height and rotation control.
-
-            [HarmonyPatch(typeof(ScreenshotManager), "Capture", new Type[] { typeof(Camera), typeof(Vector2Int) })]
-            [HarmonyPostfix]
-            public static void SteamScreenshotsHook(ref Camera target_camera)
+            
+            [HarmonyPatch(typeof(Photo), nameof(Photo.Capture), new Type[] { typeof(Camera), typeof(Vector2Int) })]
+            [HarmonyPrefix]
+            public static bool SteamScreenshotHook(ref Camera target_camera, ref Vector2Int resolution)
             {
                 bool initialized = SteamworksAccessor.IsSteamworksReady;
                 if (initialized)
                 {
-                    // TODO: We need to find a way of getting the actual screenshot taken by the game. For now, the hook works at least.
+                    // TODO: We need to find a way of getting the actual screenshot taken by the game. For now, we know how to write a Steam Screenshot at least.
                     RenderTexture snapshotRt = new RenderTexture(Screen.width, Screen.height, 24);
                     Texture2D snapshot = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
                     var oldTargetTexture = target_camera.targetTexture;
@@ -359,6 +359,22 @@ namespace SvSFix
                     SteamScreenshots.WriteScreenshot(snapshotData, (uint)snapshotSize, snapshot.width, snapshot.height);
                     target_camera.targetTexture = oldTargetTexture; // Sets our target texture back to it's original after taking a screenshot.
                 }
+                return true;
+            }
+            
+
+            [HarmonyPatch(typeof(CameraControl), "SetPosition", new Type[] { typeof(Vector3) })]
+            [HarmonyPrefix]
+            public static bool RemoveCameraClamping(ref Vector3 position)
+            {
+                //_log.LogInfo("Hooked Camera Clamping!"); // This hook seemingly works, I just need to figure out how to access private info.
+                //if (this.camera_ == null)
+                //{
+                    //return;
+                //}
+                //this.camera_.transform.position = position;
+                //return false
+                return true; // Comment this return statement when you get a fix actually working.
             }
             //CameraControl.Set
         }
