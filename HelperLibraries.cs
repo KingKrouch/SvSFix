@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,6 +11,7 @@ using System.Threading;
 // SteamInput and Input Stuff
 using IF.Steam;
 using Steamworks;
+using SvSFix;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.DualShock;
 using UnityEngine.InputSystem.Switch;
@@ -19,12 +21,155 @@ namespace KingKrouch.Utility.Helpers;
 
 public class InputManager : MonoBehaviour
 {
-    public static bool steamInputInitialized;
+    public bool steamInputInitialized;
     public InputHandle_t[] inputHandles = new InputHandle_t[Constants.STEAM_INPUT_MAX_COUNT];
+    public InputHandle_t[] inputHandlesPrev = new InputHandle_t[Constants.STEAM_INPUT_MAX_COUNT];
     
-    private void Start()
-    { 
-        InitInput();
+    public struct ActionOrigins
+    {
+        public static EInputActionOrigin originA;
+        public static EInputActionOrigin originB;
+        public static EInputActionOrigin originX;
+        public static EInputActionOrigin originY;
+        public static EInputActionOrigin originDpadUp;
+        public static EInputActionOrigin originDpadDown;
+        public static EInputActionOrigin originDpadLeft;
+        public static EInputActionOrigin originDpadRight;
+        public static EInputActionOrigin originLsClick;
+        public static EInputActionOrigin originLs;
+        public static EInputActionOrigin originRsClick;
+        public static EInputActionOrigin originRs;
+        public static EInputActionOrigin originLb;
+        public static EInputActionOrigin originLt;
+        public static EInputActionOrigin originRb;
+        public static EInputActionOrigin originRt;
+        public static EInputActionOrigin originStart;
+        public static EInputActionOrigin originBack;
+    }
+
+    public struct GlyphLocations
+    {
+        public static string promptA;
+        public static string promptB;
+        public static string promptX;
+        public static string promptY;
+        public static string promptDpadUp;
+        public static string promptDpadDown;
+        public static string promptDpadLeft;
+        public static string promptDpadRight;
+        public static string promptLsClick;
+        public static string promptLs;
+        public static string promptRsClick;
+        public static string promptRs;
+        public static string promptLb;
+        public static string promptLt;
+        public static string promptRb;
+        public static string promptRt;
+        public static string promptStart;
+        public static string promptBack;
+    }
+
+    public void CreateNewPromptImages()
+    {
+        if (steamInputInitialized)
+        {
+            var inputType = SteamInput.GetInputTypeForHandle(inputHandles[0]);
+            var connectedControllers = SteamInput.GetConnectedControllers(inputHandles);
+            if (inputType != ESteamInputType.k_ESteamInputType_Unknown && connectedControllers > 0) { // If the controller type is not unknown and if there is more than 0 input handles.
+                // Grabs the Action Origins from Xbox Origin
+                ActionOrigins.originA         = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_A);
+                ActionOrigins.originB         = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_B);
+                ActionOrigins.originX         = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_X);
+                ActionOrigins.originY         = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_Y);
+                ActionOrigins.originDpadUp    = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_DPad_North);
+                ActionOrigins.originDpadDown  = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_DPad_East);
+                ActionOrigins.originDpadLeft  = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_DPad_South);
+                ActionOrigins.originDpadRight = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_DPad_West);
+                ActionOrigins.originLsClick   = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftStick_Click);
+                ActionOrigins.originLs        = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftStick_Move);
+                ActionOrigins.originRsClick   = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightStick_Click);
+                ActionOrigins.originRs        = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightStick_Move);
+                ActionOrigins.originLb        = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftBumper);
+                ActionOrigins.originLt        = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftTrigger_Pull);
+                if (ActionOrigins.originLt == null) {
+                    ActionOrigins.originLt    = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftTrigger_Click);
+                }
+                ActionOrigins.originRb        = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightBumper);
+                ActionOrigins.originRt        = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightTrigger_Pull);
+                if (ActionOrigins.originRt == null) {
+                    ActionOrigins.originRt    = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightTrigger_Click);
+                }
+                ActionOrigins.originStart     = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_Menu);
+                ActionOrigins.originBack      = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_View);
+                // Grabbing the file locations for glyphs based on the Action Origin.
+                GlyphLocations.promptA                = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originA, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptB                = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originB, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptX                = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originX, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptY                = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originY, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptDpadUp           = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originDpadUp, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptDpadDown         = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originDpadDown, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptDpadLeft         = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originDpadLeft, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptDpadRight        = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originDpadRight, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptLsClick          = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originLsClick, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptLs               = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originLs, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptRsClick          = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originRsClick, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptRs               = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originRs, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptLb               = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originLb, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptLt               = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originLt, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptRb               = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originRb, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptRt               = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originRt, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptStart            = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originStart, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                GlyphLocations.promptBack             = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originBack, ESteamInputGlyphSize.k_ESteamInputGlyphSize_Large, 0);
+                
+                // Now we can create the sprites given the glyph PNG location.
+                Glyphs.GlyphA         = CreateNewSpriteFromImageLocation(GlyphLocations.promptA);           // Batsu   (Cross)
+                Glyphs.GlyphB         = CreateNewSpriteFromImageLocation(GlyphLocations.promptB);           // Maru    (Circle)
+                Glyphs.GlyphX         = CreateNewSpriteFromImageLocation(GlyphLocations.promptX);           // Sikaku  (Square)
+                Glyphs.GlyphY         = CreateNewSpriteFromImageLocation(GlyphLocations.promptY);           // Sankaku (Triangle)
+                Glyphs.GlyphDpadUp    = CreateNewSpriteFromImageLocation(GlyphLocations.promptDpadUp);      // D-Pad Up
+                Glyphs.GlyphDpadDown  = CreateNewSpriteFromImageLocation(GlyphLocations.promptDpadDown);    // D-Pad Down
+                Glyphs.GlyphDpadLeft  = CreateNewSpriteFromImageLocation(GlyphLocations.promptDpadLeft);    // D-Pad Left
+                Glyphs.GlyphDpadRight = CreateNewSpriteFromImageLocation(GlyphLocations.promptDpadRight);   // D-Pad Right
+                Glyphs.GlyphLsClick   = CreateNewSpriteFromImageLocation(GlyphLocations.promptLsClick);     // LS Click
+                Glyphs.GlyphLs        = CreateNewSpriteFromImageLocation(GlyphLocations.promptLs);          // LS
+                Glyphs.GlyphRsClick   = CreateNewSpriteFromImageLocation(GlyphLocations.promptRsClick);     // RS Click
+                Glyphs.GlyphRs        = CreateNewSpriteFromImageLocation(GlyphLocations.promptRs);          // RS
+                Glyphs.GlyphLb        = CreateNewSpriteFromImageLocation(GlyphLocations.promptLb);          // LB
+                Glyphs.GlyphLt        = CreateNewSpriteFromImageLocation(GlyphLocations.promptLt);          // LT
+                Glyphs.GlyphRb        = CreateNewSpriteFromImageLocation(GlyphLocations.promptRb);          // RB
+                Glyphs.GlyphRt        = CreateNewSpriteFromImageLocation(GlyphLocations.promptRt);          // RT
+                Glyphs.GlyphStart     = CreateNewSpriteFromImageLocation(GlyphLocations.promptStart);       // Start
+                Glyphs.GlyphBack      = CreateNewSpriteFromImageLocation(GlyphLocations.promptBack);        // Back
+
+                //GameObject test = new GameObject
+                //{
+                //name = "TestRender",
+                //transform =
+                //{
+                //position = new Vector3(0, 0, 0),
+                //rotation = Quaternion.identity
+                //}
+                //};
+                //var Sr = test.AddComponent<SpriteRenderer>();
+                //Sr.sprite = buttonBatuNew;
+                //DontDestroyOnLoad(test);
+            }
+        }
+    }
+        // GameUiKeyAssign/Canvas/Root/Frame0/Trunk/Node(Clone)/Pad/Key/Icon is what needs it's image reference modified to point to our own sprites rather than the game's.
+        // GameUiKeyAssignParts.Node.list_sprites_ seemingly contains a list of sprites
+    
+
+    private Sprite CreateNewSpriteFromImageLocation(string fileLocation)
+    {
+        var rawData = File.ReadAllBytes(fileLocation);
+        Texture2D prompt = new Texture2D(2, 2);
+        prompt.LoadImage(rawData);
+        Vector2 size = new Vector2(prompt.width, prompt.height);
+        Rect imageRect = new Rect(new Vector2(0,0), size);
+        Vector2 pivot = new Vector2(((float)prompt.width / 2), ((float)prompt.height / 2));
+        Sprite output = Sprite.Create(prompt, imageRect, pivot);
+        return output;
     }
     
     public void InitInput()
@@ -37,6 +182,7 @@ public class InputManager : MonoBehaviour
             {
                 SteamInput.RunFrame();
                 int result = SteamInput.GetConnectedControllers(inputHandles);
+                inputHandlesPrev = inputHandles;
                 //foreach (var controller in inputHandles) {
                 //ESteamInputType inputType = SteamInput.GetInputTypeForHandle(controller);
                 //Debug.Log(inputType + " is being used.");
@@ -76,13 +222,10 @@ public class InputManager : MonoBehaviour
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
-
-                if (SteamUtils.IsSteamRunningOnSteamDeck())
-                {
-                    Debug.Log("Running on Steam Deck!");
-                }
+                Debug.Log("Connected Controller 1: " + SteamInput.GetInputTypeForHandle(inputHandles[0]));
+                CreateNewPromptImages();
             }
-            if (!initialized || !steamInputInitialized)
+            if (!steamInputInitialized)
             {
                 Debug.Log(UnityEngine.InputSystem.Gamepad.all[0].device.name);
                 switch (UnityEngine.InputSystem.Gamepad.all[0].device)
@@ -105,7 +248,29 @@ public class InputManager : MonoBehaviour
                         throw new ArgumentOutOfRangeException();
                 }
             }
+            if (SteamUtils.IsSteamRunningOnSteamDeck())
+            {
+                Debug.Log("Running on Steam Deck!");
+            }
         }
+    }
+
+    private void Update()
+    {
+        if (steamInputInitialized) {
+            SteamInput.RunFrame();
+            if (inputHandles != inputHandlesPrev) { // Checks if inputHandles is old, and if so, updates our inputHandles, and generates new prompt images for Player 1.
+                int result = SteamInput.GetConnectedControllers(inputHandles);
+                inputHandlesPrev = inputHandles;
+                Debug.Log("Reconnected Controller 1: " + SteamInput.GetInputTypeForHandle(inputHandles[0]));
+                CreateNewPromptImages();
+            }
+        }
+    }
+    
+    private void Start()
+    { 
+        InitInput();
     }
 }
 

@@ -1,24 +1,53 @@
 ﻿using System;
+using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using Game.Cinema;
+using Game.UI;
 using Game.UI.Config;
+using Game.UI.Local;
 using Game.UI.MainMenu;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Rendering.Universal;
 using Game.UI.MainMenu.Local;
+using IF.GameMain.Splash;
+using IF.GameMain.Splash.Config;
 using IF.PhotoMode.Control;
 using IF.Steam;
 using KingKrouch.Utility.Helpers;
 using Steamworks;
 using SvSFix.Controllers;
 using SvSFix.ResolutionClasses;
+using UnityEngine.Rendering;
+using UnityEngine.TextCore;
 
 namespace SvSFix
 {
+    public struct Glyphs
+    {
+        public static Sprite GlyphA;
+        public static Sprite GlyphB;
+        public static Sprite GlyphX;
+        public static Sprite GlyphY;
+        public static Sprite GlyphDpadUp;
+        public static Sprite GlyphDpadDown;
+        public static Sprite GlyphDpadLeft;
+        public static Sprite GlyphDpadRight;
+        public static Sprite GlyphLsClick;
+        public static Sprite GlyphLs;
+        public static Sprite GlyphRsClick;
+        public static Sprite GlyphRs;
+        public static Sprite GlyphLb;
+        public static Sprite GlyphLt;
+        public static Sprite GlyphRb;
+        public static Sprite GlyphRt;
+        public static Sprite GlyphStart;
+        public static Sprite GlyphBack;
+    }
+    
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
     [BepInProcess("neptunia-sisters-vs-sisters.exe")]
     public class SvSFix : BaseUnityPlugin
@@ -202,6 +231,7 @@ namespace SvSFix
         private static bool CreateBlackBars()
         {
             // Creates our BlackBarController prefab by hooking into Unity's AssetBundles system.
+            // By default, SvS uses Unity 2021.2.5f1, keeping that in mind in case I need to use AssetBundles again for whatever reason.
             var path = @"BepInEx\content\svsfix_content";
             var bundle = AssetBundle.LoadFromFile(path);
             if (bundle != null)
@@ -231,26 +261,20 @@ namespace SvSFix
             }
         }
 
-        public static void CreateNewPromptImages()
-        {
-            Sprite buttonSankakuNew = new Sprite();
-            Sprite buttonSikakuNew  = new Sprite();
-            Sprite buttonBatuNew    = new Sprite();
-            Sprite buttonMaruNew    = new Sprite();
-            // GameUiKeyAssign/Canvas/Root/Frame0/Trunk/Node(Clone)/Pad/Key/Icon is what needs it's image reference modified to point to our own sprites rather than the game's.
-            // GameUiKeyAssignParts.Node.list_sprites_ seemingly contains a list of sprites
-        }
+        
 
         private static void LoadGraphicsSettings()
         {
             // TODO:
             // 1. Figure out why the texture filtering is not working correctly. Despite our patches, the textures are still blurry as fuck and has visible seams.
+            // 2. Find a way of writing to the shadow resolution variables in the UniversalRenderPipelineAsset.
             
             QualitySettings.anisotropicFiltering = AnisotropicFiltering.ForceEnable;
             Texture.SetGlobalAnisotropicFilteringLimits(_anisotropicFiltering.Value, _anisotropicFiltering.Value);
             Texture.masterTextureLimit      = _forcedTextureQuality.Value; // Can raise this to force lower the texture size. Goes up to 14.
             QualitySettings.maximumLODLevel = _forcedLodQuality.Value; // Can raise this to force lower the LOD settings. 3 at max if you want it to look like a blockout level prototype.
             QualitySettings.lodBias         = _fLodBias.Value;
+            
             // Let's adjust some of the Render Pipeline Settings during runtime.
             var asset = (UniversalRenderPipelineAsset)QualitySettings.renderPipeline;
 
@@ -261,6 +285,7 @@ namespace SvSFix
             asset.shadowCascadeCount = _shadowCascades.Value;
             QualitySettings.renderPipeline = asset;
             
+            // TODO: Figure out why this isn't working properly.
             // Now let's adjust the post-processing settings for the camera.
             var cameraData = FindObjectsOfType<UniversalAdditionalCameraData>();
             foreach (var c in cameraData)
@@ -301,6 +326,12 @@ namespace SvSFix
         [HarmonyPatch]
         public class PhotoModePatches
         {
+            // TODO:
+            // 1. Remove Photo Mode height restrictions (or at least make them to the floor rather than an angle that can't look up skirts).
+            // 2. Add camera tilting to Photo Mode
+            // 3. Add a Steam Screenshot hook to the Photo Mode screenshot feature.
+            // 4. Add character height and rotation control.
+            
             //CameraControl.Set
         }
 
@@ -316,6 +347,9 @@ namespace SvSFix
             // 6. Investigate adding hooks for individual sprites to load PlayStation or Switch equivalents if those types are detected (and SteamInput is disabled), or glyphs from SteamInput if it initialized successfully.
             // 7. Implement an option that allows reversing Cross/Circle in menus, enabled by default on Nintendo Switch controllers.
 
+            public static GameObject advInputMgrObject;
+            public static InputManager advInputMgrComponent;
+
             // So both GameInput and World Manager seemingly have stuff that toggles the mouse cursor.
             [HarmonyPatch(typeof(GameInput), nameof(GameInput.RenewMouseCursorVisible))]
             [HarmonyPrefix]
@@ -328,7 +362,7 @@ namespace SvSFix
             [HarmonyPostfix]
             public static void SteamworksInitExtra()
             {
-                GameObject advInputMgrObject = new GameObject {
+                advInputMgrObject = new GameObject {
                     name = "AdvancedInputManager",
                     transform = {
                         position = new Vector3(0, 0, 0),
@@ -336,8 +370,102 @@ namespace SvSFix
                     }
                 };
                 DontDestroyOnLoad(advInputMgrObject);
-                var advInputMgr = advInputMgrObject.AddComponent<InputManager>();
-                _log.LogInfo("Connected Controller 1: " + SteamInput.GetInputTypeForHandle(advInputMgr.inputHandles[0]));
+                advInputMgrComponent = advInputMgrObject.AddComponent<InputManager>();
+            }
+            
+            //[HarmonyPatch(typeof(GameUiIcon), "Setup")]
+            //[HarmonyPrefix]
+            //public static void ChangeConfirmButton()
+            //{
+                //SingletonMonoBehaviour<LibInput>.Instance.IsConfirmButtonX() = true;
+            //}
+
+            //[HarmonyPatch(typeof(GameUiIcon), "GetSprite", new Type[] { typeof(EnumIcon) })]
+            //[HarmonyPostfix]
+            public static Sprite GetSprite(ref EnumIcon icon, ref Sprite __result)
+            {
+                if (advInputMgrComponent.steamInputInitialized)
+                {
+                    switch (icon) {
+                        case EnumIcon.PAD_BUTTON_L:
+                            return Glyphs.GlyphDpadLeft;
+                        case EnumIcon.PAD_BUTTON_U:
+                            return Glyphs.GlyphDpadUp;
+                        case EnumIcon.PAD_BUTTON_R:
+                            return Glyphs.GlyphDpadRight;
+                        case EnumIcon.PAD_BUTTON_D:
+                            return Glyphs.GlyphDpadRight;
+                        case EnumIcon.PAD_MOVE:
+                            return Glyphs.GlyphLs;
+                        case EnumIcon.PAD_MOVE_ALL:
+                            return Glyphs.GlyphLs;
+                        case EnumIcon.PAD_MOVE_L:
+                            break;
+                        case EnumIcon.PAD_MOVE_U:
+                            break;
+                        case EnumIcon.PAD_MOVE_R:
+                            break;
+                        case EnumIcon.PAD_MOVE_D:
+                            break;
+                        case EnumIcon.PAD_MOVE_LR:
+                            break;
+                        case EnumIcon.PAD_MOVE_UD:
+                            break;
+                        case EnumIcon.PAD_L1:
+                            return Glyphs.GlyphLb;
+                        case EnumIcon.PAD_R1:
+                            return Glyphs.GlyphRb;
+                        case EnumIcon.PAD_L2:
+                            return Glyphs.GlyphLt;
+                        case EnumIcon.PAD_R2:
+                            return Glyphs.GlyphRt;
+                        case EnumIcon.PAD_L3:
+                            return Glyphs.GlyphLsClick;
+                        case EnumIcon.PAD_R3:
+                            return Glyphs.GlyphRsClick;
+                        case EnumIcon.PAD_L_STICK:
+                            return Glyphs.GlyphLs;
+                        case EnumIcon.PAD_L_STICK_L:
+                            break;
+                        case EnumIcon.PAD_L_STICK_U:
+                            break;
+                        case EnumIcon.PAD_L_STICK_R:
+                            break;
+                        case EnumIcon.PAD_L_STICK_D:
+                            break;
+                        case EnumIcon.PAD_L_STICK_LR:
+                            break;
+                        case EnumIcon.PAD_L_STICK_UD:
+                            break;
+                        case EnumIcon.PAD_R_STICK:
+                            return Glyphs.GlyphRs;
+                        case EnumIcon.PAD_R_STICK_L:
+                            break;
+                        case EnumIcon.PAD_R_STICK_U:
+                            break;
+                        case EnumIcon.PAD_R_STICK_R:
+                            break;
+                        case EnumIcon.PAD_R_STICK_D:
+                            break;
+                        case EnumIcon.PAD_R_STICK_LR:
+                            break;
+                        case EnumIcon.PAD_R_STICK_UD:
+                            break;
+                        case EnumIcon.PAD_CREATE:
+                            break;
+                        case EnumIcon.PAD_OPTIONS:
+                            return Glyphs.GlyphStart;
+                        case EnumIcon.PAD_TOUCH:
+                            return Glyphs.GlyphBack;
+                        case EnumIcon.PAD_SELECT:
+                            return Glyphs.GlyphBack;
+                        case EnumIcon.PAD_START:
+                            return Glyphs.GlyphStart;
+                        default:
+                            break;
+                    }
+                }
+                return __result;
             }
         }
 
@@ -364,37 +492,29 @@ namespace SvSFix
             public static bool CustomMaterialMaskParameter(Material out_material, Vector3 mask_position, Texture mask_texture, float mask_rotation_degree_z, float mask_scale)
             {
                 out_material.SetTexture(MaskTexture, mask_texture);
-                if (mask_texture == null)
-                {
+                if (mask_texture == null) {
                     out_material.SetMatrix(MaskMatrixUV, Matrix4x4.identity);
                     return false;
                 }
-
                 Matrix4x4 matrix = Matrix4x4.identity;
                 MGS_GM.Matrix_MulTranslate_Parent(ref matrix, 0.5f, 0.5f, 0f);
                 MGS_GM.Matrix_MulRotZ_Parent(ref matrix, MGS_GM.DegToRad(mask_rotation_degree_z));
                 // Add our new aspect ratio calculation logic.
                 float currentAspectRatio = Screen.width / (float)Screen.height;
-                if (currentAspectRatio > OriginalAspectRatio)
-                {
+                if (currentAspectRatio > OriginalAspectRatio) {
                     _newSizeX = (float)Math.Round(3840f / (OriginalAspectRatio / currentAspectRatio));
                     _newSizeY = 2160f;
                 }
-                else if (currentAspectRatio < OriginalAspectRatio)
-                {
-                    // TODO: Figure out why narrower aspect ratios results in the left and right being cut off.
+                else if (currentAspectRatio < OriginalAspectRatio) {
+                    // TODO: Figure out why narrower aspect ratios results in the left and right being cut off, alongside the top and bottom appearing more egg-like.
                     _newSizeX = 3840f;
                     _newSizeY = (float)Math.Round(2160f / (OriginalAspectRatio / currentAspectRatio));
                 }
-
                 MGS_GM.Matrix_MulScale_Parent(ref matrix, _newSizeX / mask_texture.width, _newSizeY / mask_texture.height, 1f);
-                if (mask_scale != 0f)
-                {
+                if (mask_scale != 0f) {
                     MGS_GM.Matrix_MulScale_Parent(ref matrix, 1f / (mask_scale * 2f), 1f / (mask_scale * 2f), 1f);
                 }
-
-                MGS_GM.Matrix_MulTranslate_Parent(ref matrix, (mask_position.x / Screen.width - 0.5f) * 2f * -1f,
-                    (mask_position.y / Screen.height - 0.5f) * 2f * -1f, 0f);
+                MGS_GM.Matrix_MulTranslate_Parent(ref matrix, (mask_position.x / Screen.width - 0.5f) * 2f * -1f, (mask_position.y / Screen.height - 0.5f) * 2f * -1f, 0f);
                 out_material.SetMatrix(MaskMatrixUV, matrix);
                 return false;
             }
@@ -405,10 +525,16 @@ namespace SvSFix
             {
                 // Check if belongs to a object named Frame2, and if so, change RectTransform.offsetMin to horizontal aspect ratio equivalent of 3840x2160
                 // Check if belongs to a object named Frame0 (Pause Menu), and if so, change RectTransform.anchoredPosition to (-660,0) at 3440x1440, for example
-
-
                 return true;
             }
+            
+            //[HarmonyPatch(typeof(SplashSequenceManager), "ShowImage", new Type[] { typeof(SplashMedia) })]
+            //[HarmonyPatch(typeof(SplashSequenceManager), "PlayVideo", new Type[] { typeof(string), typeof(bool) })]
+            //[HarmonyPostfix]
+            //public static void SkipIntro()
+            //{
+                //instance.SkipCurrent(); // Need to write the proper functionality of this, but I just need to find a way of calling these functions when I want to skip opening logos/videos
+                //}
         }
 
         [HarmonyPatch]
@@ -479,7 +605,7 @@ namespace SvSFix
                     Camera[] cameras = cinema.GetComponentsInChildren<Camera>(true);
                     foreach (Camera c in cameras) {
                         if (c != null) {
-                            c.gateFit = Camera.GateFitMode.Overscan; // By default, cutscenes use the "Fill" GateFitMode, which is a terrible idea. While setting it to "Overscan" does mildly affect composition, it's not a major concern.
+                            c.gateFit = Camera.GateFitMode.Overscan; // By default, cutscenes use the "Fill" GateFitMode, which is a terrible idea outside of 16:9. While setting it to "Overscan" does mildly affect composition, it's not a major concern.
                         }
                     }
                 }
