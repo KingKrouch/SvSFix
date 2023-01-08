@@ -6,6 +6,7 @@ using BepInEx.Logging;
 using Game.Cinema;
 using Game.UI;
 using Game.UI.Config;
+using Game.UI.KeyAssign.Local;
 using Game.UI.Local;
 using Game.UI.MainMenu;
 using HarmonyLib;
@@ -13,9 +14,11 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Rendering.Universal;
 using Game.UI.MainMenu.Local;
+using Game.UI.PhotoMode;
 using IF.GameMain.Splash;
 using IF.GameMain.Splash.Config;
 using IF.PhotoMode.Control;
+using IF.PhotoMode.Imaging;
 using IF.Steam;
 using KingKrouch.Utility.Helpers;
 using Steamworks;
@@ -331,7 +334,32 @@ namespace SvSFix
             // 2. Add camera tilting to Photo Mode
             // 3. Add a Steam Screenshot hook to the Photo Mode screenshot feature.
             // 4. Add character height and rotation control.
-            
+
+            [HarmonyPatch(typeof(ScreenshotManager), "Capture", new Type[] { typeof(Camera), typeof(Vector2Int) })]
+            [HarmonyPostfix]
+            public static void SteamScreenshotsHook(ref Camera target_camera)
+            {
+                bool initialized = SteamworksAccessor.IsSteamworksReady;
+                if (initialized)
+                {
+                    // TODO: We need to find a way of getting the actual screenshot taken by the game. For now, the hook works at least.
+                    RenderTexture snapshotRt = new RenderTexture(Screen.width, Screen.height, 24);
+                    Texture2D snapshot = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
+                    var oldTargetTexture = target_camera.targetTexture;
+                    target_camera.targetTexture = snapshotRt;
+                    target_camera.Render();
+                    snapshot.ReadPixels(new Rect(0,0, snapshotRt.width, snapshotRt.height), 0, 0); // Finally transfer the render target to our texture.
+                    // Flip our texture (as it's upside down). TODO: Troubleshoot why this isn't working properly.
+                    Color[] pixels = snapshot.GetPixels();
+                    Array.Reverse(pixels);
+                    snapshot.SetPixels(pixels);
+                    // Now we finally let Steam's Screenshots API do it's thing.
+                    long snapshotSize = snapshot.GetRawTextureData().Length;
+                    byte[] snapshotData = snapshot.GetRawTextureData();
+                    SteamScreenshots.WriteScreenshot(snapshotData, (uint)snapshotSize, snapshot.width, snapshot.height);
+                    target_camera.targetTexture = oldTargetTexture; // Sets our target texture back to it's original after taking a screenshot.
+                }
+            }
             //CameraControl.Set
         }
 
