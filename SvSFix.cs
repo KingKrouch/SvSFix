@@ -1,12 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using Game.Cinema;
 using Game.UI;
 using Game.UI.Config;
-using Game.UI.KeyAssign.Local;
 using Game.UI.Local;
 using Game.UI.MainMenu;
 using HarmonyLib;
@@ -14,9 +12,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Rendering.Universal;
 using Game.UI.MainMenu.Local;
-using Game.UI.PhotoMode;
-using IF.GameMain.Splash;
-using IF.GameMain.Splash.Config;
 using IF.PhotoMode.Control;
 using IF.PhotoMode.Imaging;
 using IF.Steam;
@@ -24,31 +19,44 @@ using KingKrouch.Utility.Helpers;
 using Steamworks;
 using SvSFix.Controllers;
 using SvSFix.ResolutionClasses;
-using UnityEngine.Rendering;
-using UnityEngine.TextCore;
 
 namespace SvSFix
 {
     public struct Glyphs
     {
-        public static Sprite GlyphA;
-        public static Sprite GlyphB;
-        public static Sprite GlyphX;
-        public static Sprite GlyphY;
-        public static Sprite GlyphDpadUp;
-        public static Sprite GlyphDpadDown;
-        public static Sprite GlyphDpadLeft;
-        public static Sprite GlyphDpadRight;
-        public static Sprite GlyphLsClick;
-        public static Sprite GlyphLs;
-        public static Sprite GlyphRsClick;
-        public static Sprite GlyphRs;
-        public static Sprite GlyphLb;
-        public static Sprite GlyphLt;
-        public static Sprite GlyphRb;
-        public static Sprite GlyphRt;
-        public static Sprite GlyphStart;
-        public static Sprite GlyphBack;
+        public static Sprite   GlyphA;
+        public static Sprite   GlyphB;
+        public static Sprite   GlyphX;
+        public static Sprite   GlyphY;
+        public static Sprite   GlyphDPadUp;
+        public static Sprite   GlyphDPadDown;
+        public static Sprite   GlyphDPadLeft;
+        public static Sprite   GlyphDPadRight;
+        public static Sprite   GlyphLsClick;
+        public static Sprite   GlyphLs;
+        public static Sprite   GlyphRsClick;
+        public static Sprite   GlyphRs;
+        public static Sprite   GlyphLb;
+        public static Sprite   GlyphLt;
+        public static Sprite   GlyphRb;
+        public static Sprite   GlyphRt;
+        public static Sprite   GlyphStart;
+        public static Sprite   GlyphBack;
+        public static Sprite   GlyphLsUp;
+        public static Sprite   GlyphLsDown;
+        public static Sprite   GlyphLsLeft;
+        public static Sprite   GlyphLsRight;
+        public static Sprite[] GlyphLsUpDown      = new Sprite[2];
+        public static Sprite[] GlyphLsLeftRight   = new Sprite[2];
+        public static Sprite   GlyphRsUp;
+        public static Sprite   GlyphRsDown;
+        public static Sprite   GlyphRsLeft;
+        public static Sprite   GlyphRsRight;
+        public static Sprite[] GlyphRsUpDown      = new Sprite[2];
+        public static Sprite[] GlyphRsLeftRight   = new Sprite[2];
+        public static Sprite[] GlyphDPadUpDown    = new Sprite[2];
+        public static Sprite[] GlyphDPadLeftRight = new Sprite[2];
+        public static Sprite[] GlyphDPadFull      = new Sprite[4];
     }
     
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
@@ -388,8 +396,9 @@ namespace SvSFix
             // 3. Rebind the mouse buttons (unless a menu is open) to Primary Attack and Secondary Attack respectively in battle.
             // 4. Hide the mouse cursor in battles and dungeons unless a menu is open.
             // 5. Set up better rebinding defaults and investigate mouse (including mouse wheel) rebinding.
-            // 6. Investigate adding hooks for individual sprites to load PlayStation or Switch equivalents if those types are detected (and SteamInput is disabled), or glyphs from SteamInput if it initialized successfully.
+            // 6. Investigate adding hooks for individual sprites to load PlayStation or Switch equivalents if SteamInput is disabled (or returns a unknown controller type).
             // 7. Implement an option that allows reversing Cross/Circle in menus, enabled by default on Nintendo Switch controllers.
+            // 8. Find out how the game is switching between button prompts when a button is pressed, remove mouse input from affecting that, and then allow forcing prompts to a specific type.
 
             public static GameObject advInputMgrObject;
             public static InputManager advInputMgrComponent;
@@ -401,6 +410,8 @@ namespace SvSFix
             {
                 return true;
             }
+
+            //GameInputAccessor.CurrentDevice is what I assume is passing on the currently used input device.
             
             [HarmonyPatch(typeof(SteamworksAccessor), nameof(SteamworksAccessor.Initialize))]
             [HarmonyPostfix]
@@ -424,92 +435,134 @@ namespace SvSFix
                 //SingletonMonoBehaviour<LibInput>.Instance.IsConfirmButtonX() = true;
             //}
 
-            //[HarmonyPatch(typeof(GameUiIcon), "GetSprite", new Type[] { typeof(EnumIcon) })]
-            //[HarmonyPostfix]
-            public static Sprite GetSprite(ref EnumIcon icon, ref Sprite __result)
+            [HarmonyPatch(typeof(GameUiIcon.Input), "GetSprite", new Type[] { typeof(EnumIcon) })]
+            [HarmonyPostfix]
+            public static void GetSprite(EnumIcon icon, ref Sprite __result)
             {
-                if (advInputMgrComponent.steamInputInitialized)
+                if (advInputMgrComponent != null) // Checks if our input manager component is null before checking.
                 {
-                    switch (icon) {
-                        case EnumIcon.PAD_BUTTON_L:
-                            return Glyphs.GlyphDpadLeft;
-                        case EnumIcon.PAD_BUTTON_U:
-                            return Glyphs.GlyphDpadUp;
-                        case EnumIcon.PAD_BUTTON_R:
-                            return Glyphs.GlyphDpadRight;
-                        case EnumIcon.PAD_BUTTON_D:
-                            return Glyphs.GlyphDpadRight;
-                        case EnumIcon.PAD_MOVE:
-                            return Glyphs.GlyphLs;
-                        case EnumIcon.PAD_MOVE_ALL:
-                            return Glyphs.GlyphLs;
-                        case EnumIcon.PAD_MOVE_L:
-                            break;
-                        case EnumIcon.PAD_MOVE_U:
-                            break;
-                        case EnumIcon.PAD_MOVE_R:
-                            break;
-                        case EnumIcon.PAD_MOVE_D:
-                            break;
-                        case EnumIcon.PAD_MOVE_LR:
-                            break;
-                        case EnumIcon.PAD_MOVE_UD:
-                            break;
-                        case EnumIcon.PAD_L1:
-                            return Glyphs.GlyphLb;
-                        case EnumIcon.PAD_R1:
-                            return Glyphs.GlyphRb;
-                        case EnumIcon.PAD_L2:
-                            return Glyphs.GlyphLt;
-                        case EnumIcon.PAD_R2:
-                            return Glyphs.GlyphRt;
-                        case EnumIcon.PAD_L3:
-                            return Glyphs.GlyphLsClick;
-                        case EnumIcon.PAD_R3:
-                            return Glyphs.GlyphRsClick;
-                        case EnumIcon.PAD_L_STICK:
-                            return Glyphs.GlyphLs;
-                        case EnumIcon.PAD_L_STICK_L:
-                            break;
-                        case EnumIcon.PAD_L_STICK_U:
-                            break;
-                        case EnumIcon.PAD_L_STICK_R:
-                            break;
-                        case EnumIcon.PAD_L_STICK_D:
-                            break;
-                        case EnumIcon.PAD_L_STICK_LR:
-                            break;
-                        case EnumIcon.PAD_L_STICK_UD:
-                            break;
-                        case EnumIcon.PAD_R_STICK:
-                            return Glyphs.GlyphRs;
-                        case EnumIcon.PAD_R_STICK_L:
-                            break;
-                        case EnumIcon.PAD_R_STICK_U:
-                            break;
-                        case EnumIcon.PAD_R_STICK_R:
-                            break;
-                        case EnumIcon.PAD_R_STICK_D:
-                            break;
-                        case EnumIcon.PAD_R_STICK_LR:
-                            break;
-                        case EnumIcon.PAD_R_STICK_UD:
-                            break;
-                        case EnumIcon.PAD_CREATE:
-                            break;
-                        case EnumIcon.PAD_OPTIONS:
-                            return Glyphs.GlyphStart;
-                        case EnumIcon.PAD_TOUCH:
-                            return Glyphs.GlyphBack;
-                        case EnumIcon.PAD_SELECT:
-                            return Glyphs.GlyphBack;
-                        case EnumIcon.PAD_START:
-                            return Glyphs.GlyphStart;
-                        default:
-                            break;
+                    if (advInputMgrComponent.steamInputInitialized)
+                    {
+                        var inputHandleP1 = SteamInput.GetInputTypeForHandle(advInputMgrComponent.inputHandles[0]);
+                        if (inputHandleP1 != ESteamInputType.k_ESteamInputType_Unknown)
+                        {
+                            switch (icon) {
+                                case EnumIcon.PAD_BUTTON_L: // Square
+                                    __result = Glyphs.GlyphX;
+                                    break;
+                                case EnumIcon.PAD_BUTTON_U: // Triangle
+                                    __result = Glyphs.GlyphY;
+                                    break;
+                                case EnumIcon.PAD_BUTTON_R: // Circle
+                                    __result = Glyphs.GlyphB;
+                                    break;
+                                case EnumIcon.PAD_BUTTON_D: // Cross
+                                    __result = Glyphs.GlyphA;
+                                    break;
+                                case EnumIcon.PAD_MOVE:
+                                    __result = Glyphs.GlyphLs;
+                                    break;
+                                case EnumIcon.PAD_MOVE_ALL:
+                                    __result = Glyphs.GlyphLs;
+                                    break;
+                                case EnumIcon.PAD_MOVE_L: // L/U/R/D for some reason is mixed up. Here's hoping the analog stick and D-Pad directions aren't as much of a cluster fuck.
+                                    __result = Glyphs.GlyphDPadRight;
+                                    break;
+                                case EnumIcon.PAD_MOVE_U:
+                                    __result = Glyphs.GlyphDPadUp;
+                                    break;
+                                case EnumIcon.PAD_MOVE_R:
+                                    __result = Glyphs.GlyphDPadDown;
+                                    break;
+                                case EnumIcon.PAD_MOVE_D:
+                                    __result = Glyphs.GlyphDPadLeft;
+                                    break;
+                                case EnumIcon.PAD_MOVE_LR: // Like seriously, what was the person who coded this smoking? I thought pot was illegal in Japan, maybe paint thinner or computer duster? Unless something's not translated and just good-ole "Engrish" at play.
+                                    // We need to look into cycling between left/right
+                                    break;
+                                case EnumIcon.PAD_MOVE_UD:
+                                    // We need to look into cycling between up/down
+                                    break;
+                                case EnumIcon.PAD_L1:
+                                    __result = Glyphs.GlyphLb;
+                                    break;
+                                case EnumIcon.PAD_R1:
+                                    __result = Glyphs.GlyphRb;
+                                    break;
+                                case EnumIcon.PAD_L2:
+                                    __result = Glyphs.GlyphLt;
+                                    break;
+                                case EnumIcon.PAD_R2:
+                                    __result = Glyphs.GlyphRt;
+                                    break;
+                                case EnumIcon.PAD_L3:
+                                    __result = Glyphs.GlyphLsClick;
+                                    break;
+                                case EnumIcon.PAD_R3:
+                                    __result = Glyphs.GlyphRsClick;
+                                    break;
+                                case EnumIcon.PAD_L_STICK:
+                                    __result = Glyphs.GlyphLs;
+                                    break;
+                                case EnumIcon.PAD_L_STICK_L:
+                                    __result = Glyphs.GlyphLsLeft;
+                                    break;
+                                case EnumIcon.PAD_L_STICK_U:
+                                    __result = Glyphs.GlyphLsUp;
+                                    break;
+                                case EnumIcon.PAD_L_STICK_R:
+                                    __result = Glyphs.GlyphLsRight;
+                                    break;
+                                case EnumIcon.PAD_L_STICK_D:
+                                    __result = Glyphs.GlyphLsDown;
+                                    break;
+                                case EnumIcon.PAD_L_STICK_LR:
+                                    // We need to look into cycling between left/right
+                                    break;
+                                case EnumIcon.PAD_L_STICK_UD:
+                                    // We need to look into cycling between up/down
+                                    break;
+                                case EnumIcon.PAD_R_STICK:
+                                    __result = Glyphs.GlyphRs;
+                                    break;
+                                case EnumIcon.PAD_R_STICK_L:
+                                    __result = Glyphs.GlyphRsLeft;
+                                    break;
+                                case EnumIcon.PAD_R_STICK_U:
+                                    __result = Glyphs.GlyphRsUp;
+                                    break;
+                                case EnumIcon.PAD_R_STICK_R:
+                                    __result = Glyphs.GlyphRsRight;
+                                    break;
+                                case EnumIcon.PAD_R_STICK_D:
+                                    __result = Glyphs.GlyphRsDown;
+                                    break;
+                                case EnumIcon.PAD_R_STICK_LR:
+                                    // We need to look into cycling between left/right
+                                    break;
+                                case EnumIcon.PAD_R_STICK_UD:
+                                    // We need to look into cycling between up/down
+                                    break;
+                                case EnumIcon.PAD_CREATE:
+                                    break;
+                                case EnumIcon.PAD_OPTIONS:
+                                    __result = Glyphs.GlyphStart;
+                                    break;
+                                case EnumIcon.PAD_TOUCH:
+                                    __result = Glyphs.GlyphBack;
+                                    break;
+                                case EnumIcon.PAD_SELECT:
+                                    __result = Glyphs.GlyphBack;
+                                    break;
+                                case EnumIcon.PAD_START:
+                                    __result = Glyphs.GlyphStart;
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
                     }
                 }
-                return __result;
             }
         }
 
