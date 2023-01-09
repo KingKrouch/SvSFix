@@ -19,6 +19,9 @@ using KingKrouch.Utility.Helpers;
 using Steamworks;
 using SvSFix.Controllers;
 using SvSFix.ResolutionClasses;
+using UnityEngine.InputSystem.DualShock;
+using UnityEngine.InputSystem.Switch;
+using UnityEngine.InputSystem.XInput;
 
 namespace SvSFix
 {
@@ -560,6 +563,106 @@ namespace SvSFix
                                 default:
                                     break;
                             }
+                        }
+                    }
+                    else
+                    {
+                        switch (UnityEngine.InputSystem.Gamepad.all[0].device)
+                        {
+                            case DualSenseGamepadHID dualSenseGamepadHid:
+                                switch (icon) {
+                                    case EnumIcon.PAD_BUTTON_L: // Square
+                                        break;
+                                    case EnumIcon.PAD_BUTTON_U: // Triangle
+                                        break;
+                                    case EnumIcon.PAD_BUTTON_R: // Circle
+                                        break;
+                                    case EnumIcon.PAD_BUTTON_D: // Cross
+                                        break;
+                                    case EnumIcon.PAD_MOVE:
+                                        break;
+                                    case EnumIcon.PAD_MOVE_ALL:
+                                        break;
+                                    case EnumIcon.PAD_MOVE_L: // L/U/R/D for some reason is mixed up. Here's hoping the analog stick and D-Pad directions aren't as much of a cluster fuck.
+                                        break;
+                                    case EnumIcon.PAD_MOVE_U:
+                                        break;
+                                    case EnumIcon.PAD_MOVE_R:
+                                        break;
+                                    case EnumIcon.PAD_MOVE_D:
+                                        break;
+                                    case EnumIcon.PAD_MOVE_LR: // Like seriously, what was the person who coded this smoking? I thought pot was illegal in Japan, maybe paint thinner or computer duster? Unless something's not translated and just good-ole "Engrish" at play.
+                                        break;
+                                    case EnumIcon.PAD_MOVE_UD:
+                                        break;
+                                    case EnumIcon.PAD_L1:
+                                        break;
+                                    case EnumIcon.PAD_R1:
+                                        break;
+                                    case EnumIcon.PAD_L2:
+                                        break;
+                                    case EnumIcon.PAD_R2:
+                                        break;
+                                    case EnumIcon.PAD_L3:
+                                        break;
+                                    case EnumIcon.PAD_R3:
+                                        break;
+                                    case EnumIcon.PAD_L_STICK:
+                                        break;
+                                    case EnumIcon.PAD_L_STICK_L:
+                                        break;
+                                    case EnumIcon.PAD_L_STICK_U:
+                                        break;
+                                    case EnumIcon.PAD_L_STICK_R:
+                                        break;
+                                    case EnumIcon.PAD_L_STICK_D:
+                                        break;
+                                    case EnumIcon.PAD_L_STICK_LR:
+                                        break;
+                                    case EnumIcon.PAD_L_STICK_UD:
+                                        break;
+                                    case EnumIcon.PAD_R_STICK:
+                                        break;
+                                    case EnumIcon.PAD_R_STICK_L:
+                                        break;
+                                    case EnumIcon.PAD_R_STICK_U:
+                                        break;
+                                    case EnumIcon.PAD_R_STICK_R:
+                                        break;
+                                    case EnumIcon.PAD_R_STICK_D:
+                                        break;
+                                    case EnumIcon.PAD_R_STICK_LR:
+                                        break;
+                                    case EnumIcon.PAD_R_STICK_UD:
+                                        break;
+                                    case EnumIcon.PAD_CREATE:
+                                        break;
+                                    case EnumIcon.PAD_OPTIONS:
+                                        break;
+                                    case EnumIcon.PAD_TOUCH:
+                                        break;
+                                    case EnumIcon.PAD_SELECT:
+                                        break;
+                                    case EnumIcon.PAD_START:
+                                        break;
+                                    default:
+                                        break;
+                                }
+                                break;
+                            case DualShock3GamepadHID dualShock3GamepadHid:
+                                
+                                break;
+                            case DualShock4GamepadHID dualShock4GamepadHid:
+                                
+                                break;
+                            case SwitchProControllerHID switchProControllerHid:
+                                
+                                break;
+                            case XInputControllerWindows xInputControllerWindows:
+                                // Change Nothing.
+                                break;
+                            default:
+                                break;
                         }
                     }
                 }
