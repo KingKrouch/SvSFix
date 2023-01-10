@@ -3,6 +3,7 @@ using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using Game.Cinema;
+using Game.Input.Local;
 using Game.UI;
 using Game.UI.Config;
 using Game.UI.Local;
@@ -156,7 +157,7 @@ namespace SvSFix
         
         // Input Config
         public static ConfigEntry<string> _sInputType; // Automatic, Controller, KBM (Forces a certain type of button prompts, Controller will be used if Steam Deck is detected).
-        public static ConfigEntry<string> _sControllerType; // Automatic, Xbox, PS3, PS4, PS5, Switch (If SteamInput is enabled, automatic will be used regardless of settings)
+        public static ConfigEntry<string> _sControllerType; // Automatic, Xbox, PS3, PS4, PS5, Switch (If SteamInput is enabled, "Automatic" will be used regardless of settings)
         public static ConfigEntry<bool> _bDisableSteamInput; // For those that don't want to use SteamInput, absolutely hate it being forced, and would rather use Unity's built-in input system.
 
         private void InitConfig()
@@ -229,7 +230,7 @@ namespace SvSFix
                 SvSFix._log.LogError($"Input Type Value is invalid. Defaulting to Automatic.");
             }
             
-            _sControllerType = Config.Bind("Input", "Controller Prompts Type", "Automatic", "Automatic, Xbox, PS3, PS4, PS5, Switch");
+            _sControllerType = Config.Bind("Input", "Controller Prompts Type", "Automatic", "Automatic, Xbox, PS3, PS4, PS5, Switch (If SteamInput is enabled, 'Automatic' will be used regardless of settings)");
             if (!Enum.TryParse(_sControllerType.Value, out _confControllerType)) {
                 _confControllerType = EControllerType.Automatic;
                 SvSFix._log.LogError($"Controller Type Value is invalid. Defaulting to Automatic.");
@@ -446,7 +447,7 @@ namespace SvSFix
             public static GameObject advInputMgrObject;
             public static InputManager advInputMgrComponent;
             
-            public SpriteAtlas iconInputPS4 = Resources.Load("Assets/Project/AppData/Game/Interface/Icon/icon_input_PS4") as SpriteAtlas;
+            public static SpriteAtlas iconInputPS4 = Resources.Load("Assets/Project/AppData/Game/Interface/Icon/icon_input_PS4") as SpriteAtlas;
             public static SpriteAtlas iconInputPS5 = Resources.Load("Assets/Project/AppData/Game/Interface/Icon/icon_input_PS5") as SpriteAtlas;
 
             // So both GameInput and World Manager seemingly have stuff that toggles the mouse cursor.
@@ -456,9 +457,22 @@ namespace SvSFix
             {
                 return true;
             }
-
-            //GameInputAccessor.CurrentDevice is what I assume is passing on the currently used input device.
             
+            [HarmonyPatch(typeof(GameInputAccessor), "CurrentDevice", MethodType.Getter)]
+            [HarmonyPostfix]
+            public static void customCurrentDevice(ref GameInput.EnumDevice __result)
+            {
+                switch (_confInputType)
+                {
+                    case EInputType.Automatic:  __result = SingletonMonoBehaviour<GameInput>.Instance.Device; break;
+                    case EInputType.KBM:        __result = GameInput.EnumDevice.kKeyboard;                    break;
+                    case EInputType.Controller: __result = GameInput.EnumDevice.kGamepad;                     break;
+                    default:                    __result = SingletonMonoBehaviour<GameInput>.Instance.Device; break;
+                }
+            }
+            
+            // GameUiBattleCommandMenu.InputKey probably has what we are looking for regarding custom controller prompt injection.
+
             [HarmonyPatch(typeof(SteamworksAccessor), nameof(SteamworksAccessor.Initialize))]
             [HarmonyPostfix]
             public static void SteamworksInitExtra()
@@ -691,7 +705,8 @@ namespace SvSFix
                 
             //}
             
-            //[HarmonyPatch(typeof(GameScreen), nameof(CalcSelectablePatternsCount))]
+            //[HarmonyPatch(typeof(GameScreen), "CalcSelectablePatternsCount")]
+            //[HarmonyPrefix]
 
             //static GameScreen()
             //{
