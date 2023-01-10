@@ -20,7 +20,7 @@ namespace KingKrouch.Utility.Helpers;
 
 public class InputManager : MonoBehaviour
 {
-    public bool steamInputInitialized;
+    public bool steamInputInitialized = false;
     public InputHandle_t[] inputHandles = new InputHandle_t[Constants.STEAM_INPUT_MAX_COUNT];
     public InputHandle_t[] inputHandlesPrev = new InputHandle_t[Constants.STEAM_INPUT_MAX_COUNT];
     
@@ -265,7 +265,7 @@ public class InputManager : MonoBehaviour
         // GameUiKeyAssignParts.Node.list_sprites_ seemingly contains a list of sprites
     
 
-    private Sprite CreateNewSpriteFromImageLocation(string fileLocation)
+    private Sprite CreateNewSpriteFromImageLocation(string fileLocation) // TODO: Figure out why the sprites are too big relative to the originals. Size doesn't matter, that's what she (Unity) said.
     {
         var rawData = File.ReadAllBytes(fileLocation);
         Texture2D prompt = new Texture2D(2, 2);
@@ -273,7 +273,7 @@ public class InputManager : MonoBehaviour
         Vector2 size = new Vector2(prompt.width, prompt.height);
         Rect imageRect = new Rect(new Vector2(0,0), size);
         Vector2 pivot = new Vector2(((float)prompt.width / 2), ((float)prompt.height / 2));
-        Sprite output = Sprite.Create(prompt, imageRect, pivot);
+        Sprite output = Sprite.Create(prompt, imageRect, pivot, 100);
         return output;
     }
     
@@ -283,7 +283,7 @@ public class InputManager : MonoBehaviour
         ESteamInputType inputTypeP1 = ESteamInputType.k_ESteamInputType_Unknown;
         if (initialized)
         {
-            steamInputInitialized = SteamInput.Init(false);
+            if (!SvSFix.SvSFix._bDisableSteamInput.Value) { steamInputInitialized = SteamInput.Init(false); }
             if (steamInputInitialized)
             {
                 SteamInput.RunFrame();
