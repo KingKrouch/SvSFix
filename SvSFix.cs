@@ -84,8 +84,8 @@ namespace SvSFix
         public enum EPostAAType
         {
             Off,
-            Fxaa,
-            Smaa
+            FXAA,
+            SMAA
         };
 
         public enum EShadowQuality
@@ -188,7 +188,7 @@ namespace SvSFix
 
             _sPostAAType = Config.Bind("Graphics", "Post-Process AA", "SMAA", "Off, FXAA, SMAA");
             if (!Enum.TryParse(_sPostAAType.Value, out _confPostAAType)) {
-                _confPostAAType = EPostAAType.Smaa;
+                _confPostAAType = EPostAAType.SMAA;
                 SvSFix._log.LogError($"PostAA Value is invalid. Defaulting to SMAA.");
             }
 
@@ -358,8 +358,8 @@ namespace SvSFix
             {
                 c.antialiasing = _confPostAAType switch {
                     EPostAAType.Off => AntialiasingMode.None,
-                    EPostAAType.Fxaa => AntialiasingMode.FastApproximateAntialiasing,
-                    EPostAAType.Smaa => AntialiasingMode.SubpixelMorphologicalAntiAliasing,
+                    EPostAAType.FXAA => AntialiasingMode.FastApproximateAntialiasing,
+                    EPostAAType.SMAA => AntialiasingMode.SubpixelMorphologicalAntiAliasing,
                     _ => throw new ArgumentOutOfRangeException()
                 };
                 c.renderPostProcessing = _bPostProcessing.Value;
