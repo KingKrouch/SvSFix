@@ -40,6 +40,9 @@
     <Reference Include="IF.Steam">
       <HintPath>lib\IF.Steam.dll</HintPath>
     </Reference>
+    <Reference Include="Unity.Addressables">
+      <HintPath>lib\Unity.Addressables.dll</HintPath>
+    </Reference>
     <Reference Include="Unity.InputSystem">
       <HintPath>lib\Unity.InputSystem.dll</HintPath>
     </Reference>

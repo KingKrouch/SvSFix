@@ -261,9 +261,6 @@ public class InputManager : MonoBehaviour
             }
         }
     }
-        // GameUiKeyAssign/Canvas/Root/Frame0/Trunk/Node(Clone)/Pad/Key/Icon is what needs it's image reference modified to point to our own sprites rather than the game's.
-        // GameUiKeyAssignParts.Node.list_sprites_ seemingly contains a list of sprites
-    
 
     private Sprite CreateNewSpriteFromImageLocation(string fileLocation) // TODO: Figure out why the sprites are too big relative to the originals. Size doesn't matter, that's what she (Unity) said.
     {
@@ -315,7 +312,7 @@ public class InputManager : MonoBehaviour
                         break;
                     case ESteamInputType.k_ESteamInputType_SwitchProController:
                         break;
-                    case ESteamInputType.k_ESteamInputType_PS3Controller:
+                    case ESteamInputType.k_ESteamInputType_PS3Controller: // TODO: Figure out why this won't get recognized.
                         break;
                     case ESteamInputType.k_ESteamInputType_PS5Controller:
                         SteamInput.SetLEDColor(inputHandles[0], 147, 117, 219, 0);
@@ -352,13 +349,65 @@ public class InputManager : MonoBehaviour
                     case XInputControllerWindows xInputControllerWindows:
                         break;
                     default:
-                        throw new ArgumentOutOfRangeException();
+                        break;
                 }
             }
-            if (SteamUtils.IsSteamRunningOnSteamDeck())
-            {
+            if (SteamUtils.IsSteamRunningOnSteamDeck()) {
                 Debug.Log("Running on Steam Deck!");
             }
+        }
+    }
+    
+    // TODO: Fix the sprite flipping, or find something in-game that actually uses these.
+    public float timeRemainingUntilSpriteFlip = 150; // Three seconds in FixedUpdate time (50Hz)
+    public int arraySize2 = 0;
+    public int arraySize4 = 0;
+
+    private void FixedUpdate() // We are simply going to use FixedUpdate for our button prompt changes.
+    {
+        if (steamInputInitialized)
+        {
+            if (timeRemainingUntilSpriteFlip > 0) { // We are going to want to have a 150 frame time until prompts flips back.
+                timeRemainingUntilSpriteFlip -= Time.fixedDeltaTime;
+            }
+            else
+            {
+                if (arraySize2 >= 2 - 1) { // We are doing the up/down, left/right glyphs separately, because there's more than one, and I'm too lazy to rewrite this for now.
+                    arraySize2 = 0;
+                }
+                else {
+                    arraySize2 += 1;
+                }
+                GlyphCycle2(arraySize2, Glyphs.GlyphLsUpDownPresent, Glyphs.GlyphLsUpDown);
+                GlyphCycle2(arraySize2, Glyphs.GlyphLsLeftRightPresent, Glyphs.GlyphLsLeftRight);
+                GlyphCycle2(arraySize2, Glyphs.GlyphRsUpDownPresent, Glyphs.GlyphRsUpDown);
+                GlyphCycle2(arraySize2, Glyphs.GlyphRsLeftRightPresent, Glyphs.GlyphRsLeftRight);
+                GlyphCycle2(arraySize2, Glyphs.GlyphDPadUpDownPresent, Glyphs.GlyphDPadUpDown);
+                GlyphCycle2(arraySize2, Glyphs.GlyphDPadLeftRightPresent, Glyphs.GlyphDPadLeftRight);
+                GlyphCycle4(arraySize4, Glyphs.GlyphDPadFullPresent, Glyphs.GlyphDPadFull);
+            }
+        }
+    }
+    
+    private void GlyphCycle2 (int arraySize, Sprite glyphPresent, Sprite[] glyphs)
+        {
+            if (arraySize >= glyphs.Length - 1) {
+                glyphPresent = glyphs[0];
+            }
+            else {
+                glyphPresent = glyphs[arraySize];
+            }
+        }
+    
+    private void GlyphCycle4 (int arraySize, Sprite glyphPresent, Sprite[] glyphs)
+    {
+        if (arraySize >= glyphs.Length - 1) {
+            glyphPresent = glyphs[0];
+            arraySize = 0;
+        }
+        else {
+            arraySize += 1;
+            glyphPresent = glyphs[arraySize];
         }
     }
 
