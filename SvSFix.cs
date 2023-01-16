@@ -502,7 +502,7 @@ namespace SvSFix
                 __result = GetGlyph(icon, __result);
             }
 
-            static Sprite GetGlyph(EnumIcon icon, Sprite original)
+            static Sprite GetGlyph(EnumIcon icon, Sprite original) // TODO: Figure out why the keyboard prompt square after switching from controller input disappears.
             {
                 Sprite result = new Sprite();
                 if (advInputMgrComponent != null) // Checks if our input manager component is null before checking.
