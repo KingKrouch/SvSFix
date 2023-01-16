@@ -23,7 +23,7 @@ public class InputManager : MonoBehaviour
     public bool steamInputInitialized = false;
     public InputHandle_t[] inputHandles = new InputHandle_t[Constants.STEAM_INPUT_MAX_COUNT];
     public InputHandle_t[] inputHandlesPrev = new InputHandle_t[Constants.STEAM_INPUT_MAX_COUNT];
-    
+
     public struct ActionOrigins
     {
         public static EInputActionOrigin   originA;
@@ -104,38 +104,38 @@ public class InputManager : MonoBehaviour
     public void UpdateActionOrigins()
     {
         // Grabs the Action Origins from Xbox Origin
-        ActionOrigins.originA                = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_A);
-        ActionOrigins.originB                = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_B);
-        ActionOrigins.originX                = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_X);
-        ActionOrigins.originY                = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_Y);
-        ActionOrigins.originDpadUp           = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_DPad_North);
-        ActionOrigins.originDpadDown         = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_DPad_East);
-        ActionOrigins.originDpadLeft         = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_DPad_South);
-        ActionOrigins.originDpadRight        = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_DPad_West);
-        ActionOrigins.originLsClick          = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftStick_Click);
-        ActionOrigins.originLs               = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftStick_Move);
-        ActionOrigins.originRsClick          = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightStick_Click);
-        ActionOrigins.originRs               = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightStick_Move);
-        ActionOrigins.originLb               = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftBumper);
-        ActionOrigins.originLt               = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftTrigger_Pull);
+        ActionOrigins.originA                = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_A);
+        ActionOrigins.originB                = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_B);
+        ActionOrigins.originX                = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_X);
+        ActionOrigins.originY                = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_Y);
+        ActionOrigins.originDpadUp           = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_DPad_North);
+        ActionOrigins.originDpadDown         = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_DPad_East);
+        ActionOrigins.originDpadLeft         = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_DPad_South);
+        ActionOrigins.originDpadRight        = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_DPad_West);
+        ActionOrigins.originLsClick          = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftStick_Click);
+        ActionOrigins.originLs               = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftStick_Move);
+        ActionOrigins.originRsClick          = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightStick_Click);
+        ActionOrigins.originRs               = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightStick_Move);
+        ActionOrigins.originLb               = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftBumper);
+        ActionOrigins.originLt               = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftTrigger_Pull);
         if (ActionOrigins.originLt == EInputActionOrigin.k_EInputActionOrigin_None) {
-            ActionOrigins.originLt           = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftTrigger_Click);
+            ActionOrigins.originLt           = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftTrigger_Click);
         }
-        ActionOrigins.originRb               = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightBumper);
-        ActionOrigins.originRt               = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightTrigger_Pull);
+        ActionOrigins.originRb               = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightBumper);
+        ActionOrigins.originRt               = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightTrigger_Pull);
         if (ActionOrigins.originRt == EInputActionOrigin.k_EInputActionOrigin_None) {
-            ActionOrigins.originRt           = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightTrigger_Click);
+            ActionOrigins.originRt           = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightTrigger_Click);
         }
-        ActionOrigins.originStart            = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_Menu);
-        ActionOrigins.originBack             = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_View);
-        ActionOrigins.originLsUp             = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftStick_DPadNorth);
-        ActionOrigins.originLsDown           = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftStick_DPadSouth);
-        ActionOrigins.originLsLeft           = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftStick_DPadWest);
-        ActionOrigins.originLsRight          = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftStick_DPadEast);
-        ActionOrigins.originRsUp             = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightStick_DPadNorth);
-        ActionOrigins.originRsDown           = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightStick_DPadSouth);
-        ActionOrigins.originRsLeft           = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightStick_DPadWest);
-        ActionOrigins.originRsRight          = SteamInput.GetActionOriginFromXboxOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightStick_DPadEast);
+        ActionOrigins.originStart            = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_Menu);
+        ActionOrigins.originBack             = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_View);
+        ActionOrigins.originLsUp             = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftStick_DPadNorth);
+        ActionOrigins.originLsDown           = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftStick_DPadSouth);
+        ActionOrigins.originLsLeft           = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftStick_DPadWest);
+        ActionOrigins.originLsRight          = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_LeftStick_DPadEast);
+        ActionOrigins.originRsUp             = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightStick_DPadNorth);
+        ActionOrigins.originRsDown           = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightStick_DPadSouth);
+        ActionOrigins.originRsLeft           = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightStick_DPadWest);
+        ActionOrigins.originRsRight          = GetActionOrigin(inputHandles[0], EXboxOrigin.k_EXboxOrigin_RightStick_DPadEast);
         ActionOrigins.originDPadUpDown[0]    = ActionOrigins.originDpadUp;
         ActionOrigins.originDPadUpDown[1]    = ActionOrigins.originDpadDown;
         ActionOrigins.originDPadLeftRight[0] = ActionOrigins.originDpadLeft;
@@ -154,8 +154,24 @@ public class InputManager : MonoBehaviour
         ActionOrigins.originRsLeftRight[1]   = ActionOrigins.originRsRight;
     }
 
+    public EInputActionOrigin GetActionOrigin(InputHandle_t inputHandle, EXboxOrigin xboxOrigin)
+    {
+        var actionOrigin = SteamInput.GetActionOriginFromXboxOrigin(inputHandle, xboxOrigin);
+        if (actionOrigin >= EInputActionOrigin.k_EInputActionOrigin_Count) {
+            actionOrigin = SteamInput.TranslateActionOrigin(ESteamInputType.k_ESteamInputType_Unknown, actionOrigin);
+        }
+        return actionOrigin;
+    }
+
     public void UpdateGlyphLocations()
     {
+        var inputTypeP1 = SteamInput.GetInputTypeForHandle(inputHandles[0]);
+        switch (inputTypeP1) { // We want to use black button prompts if a PS3 or PS4 controller are connected.
+            case ESteamInputType.k_ESteamInputType_PS4Controller: GlyphStyle = ESteamInputGlyphStyle.ESteamInputGlyphStyle_Dark;  break;
+            case ESteamInputType.k_ESteamInputType_PS3Controller: GlyphStyle = ESteamInputGlyphStyle.ESteamInputGlyphStyle_Dark;  break;
+            default:                                              GlyphStyle = ESteamInputGlyphStyle.ESteamInputGlyphStyle_Light; break;
+        }
+        
         // Grabbing the file locations for glyphs based on the Action Origin.
         GlyphLocations.promptA                = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originA,         GlyphSize, (uint)GlyphStyle);
         GlyphLocations.promptB                = SteamInput.GetGlyphPNGForActionOrigin(ActionOrigins.originB,         GlyphSize, (uint)GlyphStyle);
@@ -251,25 +267,23 @@ public class InputManager : MonoBehaviour
 
     public void CreateNewPromptImages()
     {
-        if (steamInputInitialized) {
-            var inputType = SteamInput.GetInputTypeForHandle(inputHandles[0]);
-            var connectedControllers = SteamInput.GetConnectedControllers(inputHandles);
-            if (inputType != ESteamInputType.k_ESteamInputType_Unknown && connectedControllers > 0) { // If the controller type is not unknown and if there is more than 0 input handles.
+        if (steamInputInitialized && !SvSFix.SvSFix._bDisableSteamInput.Value) {
+            if (SteamInput.GetConnectedControllers(inputHandles) > 0)
+            {
                 UpdateActionOrigins();
                 UpdateGlyphLocations();
                 UpdateGlyphSprites();
             }
         }
     }
-        // GameUiKeyAssign/Canvas/Root/Frame0/Trunk/Node(Clone)/Pad/Key/Icon is what needs it's image reference modified to point to our own sprites rather than the game's.
-        // GameUiKeyAssignParts.Node.list_sprites_ seemingly contains a list of sprites
-    
 
     private Sprite CreateNewSpriteFromImageLocation(string fileLocation) // TODO: Figure out why the sprites are too big relative to the originals. Size doesn't matter, that's what she (Unity) said.
     {
+        fileLocation = fileLocation.Replace("color_button", "color_outlined_button"); // Since Valve's styling isn't flexible enough, gonna force the color outlined buttons.
         var rawData = File.ReadAllBytes(fileLocation);
         Texture2D prompt = new Texture2D(2, 2);
         prompt.LoadImage(rawData);
+        // TODO: The difference between the original sprites and the actual size they take up is 70%. So ideally, I want to find a way to shrink the glyphs to 70% size in the center of the texture.
         Vector2 size = new Vector2(prompt.width, prompt.height);
         Rect imageRect = new Rect(new Vector2(0,0), size);
         Vector2 pivot = new Vector2(((float)prompt.width / 2), ((float)prompt.height / 2));
@@ -289,10 +303,6 @@ public class InputManager : MonoBehaviour
                 SteamInput.RunFrame();
                 int result = SteamInput.GetConnectedControllers(inputHandles);
                 inputHandlesPrev = inputHandles;
-                //foreach (var controller in inputHandles) {
-                //ESteamInputType inputType = SteamInput.GetInputTypeForHandle(controller);
-                //Debug.Log(inputType + " is being used.");
-                //}
                 // Grabs Player 1 Controller Type.
                 inputTypeP1 = SteamInput.GetInputTypeForHandle(inputHandles[0]);
                 switch (inputTypeP1)
@@ -315,7 +325,7 @@ public class InputManager : MonoBehaviour
                         break;
                     case ESteamInputType.k_ESteamInputType_SwitchProController:
                         break;
-                    case ESteamInputType.k_ESteamInputType_PS3Controller:
+                    case ESteamInputType.k_ESteamInputType_PS3Controller: // TODO: Figure out why this won't get recognized.
                         break;
                     case ESteamInputType.k_ESteamInputType_PS5Controller:
                         SteamInput.SetLEDColor(inputHandles[0], 147, 117, 219, 0);
@@ -352,19 +362,45 @@ public class InputManager : MonoBehaviour
                     case XInputControllerWindows xInputControllerWindows:
                         break;
                     default:
-                        throw new ArgumentOutOfRangeException();
+                        break;
                 }
             }
-            if (SteamUtils.IsSteamRunningOnSteamDeck())
+            if (SteamUtils.IsSteamRunningOnSteamDeck()) {
+                Debug.Log("Running on Steam Deck!"); // Should probably find a way to load optimized settings on first run.
+            }
+        }
+    }
+    
+    // TODO: Fix the sprite flipping, or find something in-game that actually uses these.
+    public float timeRemainingUntilSpriteFlip = 150; // Three seconds in FixedUpdate time (50Hz)
+    public int arraySize2 = 0;
+    public int arraySize4 = 0;
+
+    private void FixedUpdate() // We are simply going to use FixedUpdate for our button prompt changes.
+    {
+        if (SteamworksAccessor.IsSteamworksReady && steamInputInitialized && !SvSFix.SvSFix._bDisableSteamInput.Value)
+        {
+            if (timeRemainingUntilSpriteFlip > 0) { // We are going to want to have a 150 frame time until prompts flips back.
+                timeRemainingUntilSpriteFlip -= Time.fixedDeltaTime;
+            }
+            else
             {
-                Debug.Log("Running on Steam Deck!");
+                if (arraySize2 >= 2 - 1) { arraySize2 = 0; } else { arraySize2 += 1; } // We are doing the up/down, left/right glyphs separately, because there's more than one, and I'm too lazy to rewrite this for now.
+                if (arraySize4 >= 4 - 1) { arraySize4 = 0; } else { arraySize4 += 1; }
+                Glyphs.GlyphLsUpDownPresent = Glyphs.GlyphLsUpDown[arraySize2];
+                Glyphs.GlyphLsLeftRightPresent = Glyphs.GlyphLsLeftRight[arraySize2];
+                Glyphs.GlyphRsUpDownPresent = Glyphs.GlyphRsUpDown[arraySize2];
+                Glyphs.GlyphRsLeftRightPresent = Glyphs.GlyphRsLeftRight[arraySize2];
+                Glyphs.GlyphDPadUpDownPresent = Glyphs.GlyphDPadUpDown[arraySize2];
+                Glyphs.GlyphDPadLeftRightPresent = Glyphs.GlyphDPadLeftRight[arraySize2];
+                Glyphs.GlyphDPadFullPresent = Glyphs.GlyphDPadFull[arraySize4];
             }
         }
     }
 
     private void Update()
     {
-        if (SteamworksAccessor.IsSteamworksReady && steamInputInitialized) {
+        if (SteamworksAccessor.IsSteamworksReady && steamInputInitialized && !SvSFix.SvSFix._bDisableSteamInput.Value) {
             SteamInput.RunFrame();
             if (inputHandles != inputHandlesPrev) { // Checks if inputHandles is old, and if so, updates our inputHandles, and generates new prompt images for Player 1.
                 int result = SteamInput.GetConnectedControllers(inputHandles);
