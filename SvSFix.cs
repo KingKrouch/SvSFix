@@ -1,13 +1,12 @@
 ﻿using System;
-using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using Game.Cinema;
 using Game.Input.Local;
 using Game.UI;
-using Game.UI.Config;
-using Game.UI.Dungeon;
 using Game.UI.Local;
 using Game.UI.MainMenu;
 using HarmonyLib;
@@ -22,11 +21,9 @@ using IF.Steam;
 using KingKrouch.Utility.Helpers;
 using Steamworks;
 using SvSFix.Controllers;
-using SvSFix.ResolutionClasses;
 using UnityEngine.InputSystem.DualShock;
 using UnityEngine.InputSystem.Switch;
 using UnityEngine.InputSystem.XInput;
-using UnityEngine.U2D;
 
 namespace SvSFix
 {
@@ -155,13 +152,13 @@ namespace SvSFix
         public static ConfigEntry<string> _sShadowQuality; // Going to convert an string to one of the enumerator values.
         public static ConfigEntry<int> _shadowCascades; // 0: No Shadows, 2: 2 Shadow Cascades, 4: 4 Shadow Cascades (Default)
         public static ConfigEntry<float> _fLodBias; // Default is 1.00, but this can be adjusted for an increased or decreased draw distance. 4.00 is the max I'd personally recommend for performance reasons.
-        public static ConfigEntry<int> _forcedLodQuality; // Default is 0, goes up to LOD #3 without cutting insane amounts of level geometry.
-        public static ConfigEntry<int> _forcedTextureQuality; // Default is 0, goes up to 1/14th resolution.
+        public static ConfigEntry<int> _iForcedLodQuality; // Default is 0, goes up to LOD #3 without cutting insane amounts of level geometry.
+        public static ConfigEntry<int> _iForcedTextureQuality; // Default is 0, goes up to 1/14th resolution.
         public static ConfigEntry<int> _anisotropicFiltering; // 0: Off, 2: 2xAF, 4: 4xAF, 8: 8xAF, 16: 16xAF.
         public static ConfigEntry<bool> _bPostProcessing; // Quick Toggle for Post-Processing
 
         // Framelimiter Config
-        public static ConfigEntry<int> _frameInterval; // "0" disables the framerate cap, "1" caps at your screen refresh rate, "2" caps at half refresh, "3" caps at 1/3rd refresh, "4" caps at quarter refresh.
+        public static ConfigEntry<int> _iFrameInterval; // "0" disables the framerate cap, "1" caps at your screen refresh rate, "2" caps at half refresh, "3" caps at 1/3rd refresh, "4" caps at quarter refresh.
         public static ConfigEntry<bool> _bvSync; // Self Explanatory. Prevents the game's framerate from going over the screen refresh rate, as that can cause screen tearing or increased energy consumption.
         public static readonly int MaskMatrixUV = Shader.PropertyToID("mask_matrix_uv");
         public static readonly int MaskTexture = Shader.PropertyToID("mask_texture");
@@ -170,7 +167,11 @@ namespace SvSFix
         public static ConfigEntry<string> _sInputType; // Automatic, Controller, KBM (Forces a certain type of button prompts, Controller will be used if Steam Deck is detected).
         public static ConfigEntry<string> _sControllerType; // Automatic, Xbox, PS3, PS4, PS5, Switch (If SteamInput is enabled, "Automatic" will be used regardless of settings)
         public static ConfigEntry<bool> _bDisableSteamInput; // For those that don't want to use SteamInput, absolutely hate it being forced, and would rather use Unity's built-in input system.
-
+        
+        // Resolution Config
+        public static ConfigEntry<int> _iHorizontalResolution;
+        public static ConfigEntry<int> _iVerticalResolution;
+        
         private void InitConfig()
         {
             // Aspect Ratio Config
@@ -210,11 +211,11 @@ namespace SvSFix
                 new ConfigDescription(
                     "Default is 1.00, but this can be adjusted for an increased or decreased draw distance. 4.00 is the max I'd personally recommend for performance reasons."));
 
-            _forcedLodQuality = Config.Bind("Graphics", "LOD Quality", 0,
+            _iForcedLodQuality = Config.Bind("Graphics", "LOD Quality", 0,
                 new ConfigDescription("0: No Forced LODs (Default), 1: Forces LOD # 1, 2: Forces LOD # 2, 3: Forces LOD # 3. Higher the value, the less mesh detail.",
                     new AcceptableValueRange<int>(0, 3)));
             
-            _forcedTextureQuality = Config.Bind("Graphics", "Texture Quality", 0,
+            _iForcedTextureQuality = Config.Bind("Graphics", "Texture Quality", 0,
                 new ConfigDescription("0: Full Resolution (Default), 1: Half-Res, 2: Quarter Res. Goes up to 1/14th res (14).",
                     new AcceptableValueRange<int>(0, 14)));
             
@@ -226,7 +227,7 @@ namespace SvSFix
                     new AcceptableValueRange<int>(0, 16)));
 
             // Framelimiter Config
-            _frameInterval = Config.Bind("Framerate", "Framerate Cap Interval", 1,
+            _iFrameInterval = Config.Bind("Framerate", "Framerate Cap Interval", 1,
                 new ConfigDescription(
                     "0 disables the framerate limiter, 1 caps at your screen refresh rate, 2 caps at half refresh, 3 caps at 1/3rd refresh, 4 caps at quarter refresh.",
                     new AcceptableValueRange<int>(0, 4)));
@@ -249,6 +250,9 @@ namespace SvSFix
             
             _bDisableSteamInput = Config.Bind("Input", "Force Disable SteamInput", false,
                 "Self Explanatory. Prevents SteamInput from ever running, forcefully, for those using DS4Windows/DualSenseX or wanting native controller support. Make sure to disable SteamInput in the controller section of the game's properties on Steam alongside this option.");
+            
+            _iHorizontalResolution = Config.Bind("Resolution", "Horizontal Resolution", 1280);
+            _iVerticalResolution = Config.Bind("Resolution", "Horizontal Resolution", 720);
         }
         private void Awake()
         {
@@ -290,7 +294,7 @@ namespace SvSFix
             };
             DontDestroyOnLoad(frObject);
             var frLimiterComponent = frObject.AddComponent<FramerateLimiter>();
-            frLimiterComponent.fpsLimit = (double)Screen.currentResolution.refreshRate / _frameInterval.Value;
+            frLimiterComponent.fpsLimit = (double)Screen.currentResolution.refreshRate / _iFrameInterval.Value;
             return true;
         }
 
@@ -337,8 +341,8 @@ namespace SvSFix
             
             QualitySettings.anisotropicFiltering = AnisotropicFiltering.ForceEnable;
             Texture.SetGlobalAnisotropicFilteringLimits(_anisotropicFiltering.Value, _anisotropicFiltering.Value);
-            Texture.masterTextureLimit      = _forcedTextureQuality.Value; // Can raise this to force lower the texture size. Goes up to 14.
-            QualitySettings.maximumLODLevel = _forcedLodQuality.Value; // Can raise this to force lower the LOD settings. 3 at max if you want it to look like a blockout level prototype.
+            Texture.masterTextureLimit      = _iForcedTextureQuality.Value; // Can raise this to force lower the texture size. Goes up to 14.
+            QualitySettings.maximumLODLevel = _iForcedLodQuality.Value; // Can raise this to force lower the LOD settings. 3 at max if you want it to look like a blockout level prototype.
             QualitySettings.lodBias         = _fLodBias.Value;
             
             // Let's adjust some of the Render Pipeline Settings during runtime.
@@ -573,58 +577,58 @@ namespace SvSFix
                     }
                     else
                     {
-                        switch (UnityEngine.InputSystem.Gamepad.all[0].device)
-                        {
-                            case DualSenseGamepadHID: // TODO: Fix broken null references, so there's no errors with loading sprites.
-                                //if (iconInputPS5 != null)
-                                //{
-                            //switch (icon) {
-                            //case EnumIcon.PAD_ENTER:      result = iconInputPS5.GetSprite("button_batu");    break;
-                            //case EnumIcon.PAD_BACK:       result = iconInputPS5.GetSprite("button_maru");    break;
-                            //case EnumIcon.PAD_BUTTON_L:   result = iconInputPS5.GetSprite("button_sikaku");  break; // Square
-                            //case EnumIcon.PAD_BUTTON_U:   result = iconInputPS5.GetSprite("button_sankaku"); break; // Triangle
-                            //case EnumIcon.PAD_BUTTON_R:   result = iconInputPS5.GetSprite("button_maru");    break; // Circle
-                            //case EnumIcon.PAD_BUTTON_D:   result = iconInputPS5.GetSprite("button_batu");    break; // Cross
-                            //case EnumIcon.PAD_MOVE:       result = original;                                      break;
-                            //case EnumIcon.PAD_MOVE_ALL:   result = original;                                      break;
-                            //case EnumIcon.PAD_MOVE_L:     result = original;                                      break; // L/U/R/D for some reason is mixed up.
-                            //case EnumIcon.PAD_MOVE_U:     result = original;                                      break; // Seriously, not gonna repeat what I said earlier like a broken record.
-                            //case EnumIcon.PAD_MOVE_R:     result = original;                                      break;
-                            //case EnumIcon.PAD_MOVE_D:     result = original;                                      break;
-                            //case EnumIcon.PAD_MOVE_LR:    result = original;                                      break;
-                            //case EnumIcon.PAD_MOVE_UD:    result = original;                                      break;
-                            //case EnumIcon.PAD_L1:         result = iconInputPS5.GetSprite("L1");             break;
-                            //case EnumIcon.PAD_R1:         result = iconInputPS5.GetSprite("R1");             break;
-                            //case EnumIcon.PAD_L2:         result = iconInputPS5.GetSprite("L2");             break;
-                            //case EnumIcon.PAD_R2:         result = iconInputPS5.GetSprite("R2");             break;
-                            //case EnumIcon.PAD_L3:         result = iconInputPS5.GetSprite("L3");             break;
-                            //case EnumIcon.PAD_R3:         result = iconInputPS5.GetSprite("R3");             break;
-                            //case EnumIcon.PAD_L_STICK:    result = original;                                      break;
-                            //case EnumIcon.PAD_L_STICK_L:  result = original;                                      break;
-                            //case EnumIcon.PAD_L_STICK_U:  result = original;                                      break;
-                            //case EnumIcon.PAD_L_STICK_R:  result = original;                                      break;
-                            //case EnumIcon.PAD_L_STICK_D:  result = original;                                      break;
-                            //case EnumIcon.PAD_L_STICK_LR: result = original;                                      break;
-                            //case EnumIcon.PAD_L_STICK_UD: result = original;                                      break;
-                            //case EnumIcon.PAD_R_STICK:    result = original;                                      break;
-                            //case EnumIcon.PAD_R_STICK_L:  result = original;                                      break;
-                            //case EnumIcon.PAD_R_STICK_U:  result = original;                                      break;
-                            //case EnumIcon.PAD_R_STICK_R:  result = original;                                      break;
-                            //case EnumIcon.PAD_R_STICK_D:  result = original;                                      break;
-                            //case EnumIcon.PAD_R_STICK_LR: result = original;                                      break;
-                            //case EnumIcon.PAD_R_STICK_UD: result = original;                                      break;
-                            //case EnumIcon.PAD_CREATE:     result = iconInputPS5.GetSprite("create");         break;
-                            //case EnumIcon.PAD_OPTIONS:    result = iconInputPS5.GetSprite("options");        break;
-                            //case EnumIcon.PAD_TOUCH:      result = iconInputPS5.GetSprite("touch");          break;
-                            //case EnumIcon.PAD_SELECT:     result = iconInputPS5.GetSprite("touch");          break;
-                            //case EnumIcon.PAD_START:      result = iconInputPS5.GetSprite("start");          break;
-                            //default:                      result = original;                                      break;
-                            //}
+                        if (UnityEngine.InputSystem.Gamepad.all[0].device != null) {
+                            switch (UnityEngine.InputSystem.Gamepad.all[0].device) {
+                                case DualSenseGamepadHID: // TODO: Fix broken null references, so there's no errors with loading sprites.
+                                    //if (iconInputPS5 != null)
+                                    //{
+                                //switch (icon) {
+                                //case EnumIcon.PAD_ENTER:      result = iconInputPS5.GetSprite("button_batu");    break;
+                                //case EnumIcon.PAD_BACK:       result = iconInputPS5.GetSprite("button_maru");    break;
+                                //case EnumIcon.PAD_BUTTON_L:   result = iconInputPS5.GetSprite("button_sikaku");  break; // Square
+                                //case EnumIcon.PAD_BUTTON_U:   result = iconInputPS5.GetSprite("button_sankaku"); break; // Triangle
+                                //case EnumIcon.PAD_BUTTON_R:   result = iconInputPS5.GetSprite("button_maru");    break; // Circle
+                                //case EnumIcon.PAD_BUTTON_D:   result = iconInputPS5.GetSprite("button_batu");    break; // Cross
+                                //case EnumIcon.PAD_MOVE:       result = original;                                      break;
+                                //case EnumIcon.PAD_MOVE_ALL:   result = original;                                      break;
+                                //case EnumIcon.PAD_MOVE_L:     result = original;                                      break; // L/U/R/D for some reason is mixed up.
+                                //case EnumIcon.PAD_MOVE_U:     result = original;                                      break; // Seriously, not gonna repeat what I said earlier like a broken record.
+                                //case EnumIcon.PAD_MOVE_R:     result = original;                                      break;
+                                //case EnumIcon.PAD_MOVE_D:     result = original;                                      break;
+                                //case EnumIcon.PAD_MOVE_LR:    result = original;                                      break;
+                                //case EnumIcon.PAD_MOVE_UD:    result = original;                                      break;
+                                //case EnumIcon.PAD_L1:         result = iconInputPS5.GetSprite("L1");             break;
+                                //case EnumIcon.PAD_R1:         result = iconInputPS5.GetSprite("R1");             break;
+                                //case EnumIcon.PAD_L2:         result = iconInputPS5.GetSprite("L2");             break;
+                                //case EnumIcon.PAD_R2:         result = iconInputPS5.GetSprite("R2");             break;
+                                //case EnumIcon.PAD_L3:         result = iconInputPS5.GetSprite("L3");             break;
+                                //case EnumIcon.PAD_R3:         result = iconInputPS5.GetSprite("R3");             break;
+                                //case EnumIcon.PAD_L_STICK:    result = original;                                      break;
+                                //case EnumIcon.PAD_L_STICK_L:  result = original;                                      break;
+                                //case EnumIcon.PAD_L_STICK_U:  result = original;                                      break;
+                                //case EnumIcon.PAD_L_STICK_R:  result = original;                                      break;
+                                //case EnumIcon.PAD_L_STICK_D:  result = original;                                      break;
+                                //case EnumIcon.PAD_L_STICK_LR: result = original;                                      break;
+                                //case EnumIcon.PAD_L_STICK_UD: result = original;                                      break;
+                                //case EnumIcon.PAD_R_STICK:    result = original;                                      break;
+                                //case EnumIcon.PAD_R_STICK_L:  result = original;                                      break;
+                                //case EnumIcon.PAD_R_STICK_U:  result = original;                                      break;
+                                //case EnumIcon.PAD_R_STICK_R:  result = original;                                      break;
+                                //case EnumIcon.PAD_R_STICK_D:  result = original;                                      break;
+                                //case EnumIcon.PAD_R_STICK_LR: result = original;                                      break;
+                                //case EnumIcon.PAD_R_STICK_UD: result = original;                                      break;
+                                //case EnumIcon.PAD_CREATE:     result = iconInputPS5.GetSprite("create");         break;
+                                //case EnumIcon.PAD_OPTIONS:    result = iconInputPS5.GetSprite("options");        break;
+                                //case EnumIcon.PAD_TOUCH:      result = iconInputPS5.GetSprite("touch");          break;
+                                //case EnumIcon.PAD_SELECT:     result = iconInputPS5.GetSprite("touch");          break;
+                                //case EnumIcon.PAD_START:      result = iconInputPS5.GetSprite("start");          break;
+                                //default:                      result = original;                                      break;
+                                //}
                                 //}
                                 //else {
-                            //result = original;
+                                //result = original;
                                 //}
-                            //break;
+                                //break;
                             case DualShock3GamepadHID:
                                 result = original;
                                 break;
@@ -641,6 +645,7 @@ namespace SvSFix
                             default:
                                 result = original;
                                 break;
+                            }
                         }
                     }
                 }
@@ -737,48 +742,48 @@ namespace SvSFix
                 //}
         }
 
+        
+
         [HarmonyPatch]
         public class ResolutionPatches
         {
+            public static int resolutionIndex = 0;
+            public static List<ResolutionManager.Resolution> list = ResolutionManager.ScreenResolutions().ToList<ResolutionManager.Resolution>();
             //[HarmonyPatch(typeof(GameScreen), nameof(GameScreen.EnumPattern), MethodType.Enumerator)]
             //[HarmonyTranspiler]
             //static IEnumerator customEnumPattern()
             //{
                 
             //}
-            
-            //[HarmonyPatch(typeof(GameScreen), "CalcSelectablePatternsCount")]
-            //[HarmonyPrefix]
-
-            //static GameScreen()
-            //{
-            //List<ResolutionManager.resolution> list = ResolutionManager.ScreenResolutions().ToList<ResolutionManager.resolution>();
-            //GameScreen.pattern_ = new GameScreen.Pattern(list.Count, 0, 0);
-            //GameScreen.patterns_ = new GameScreen.Pattern[list.Count];
-            //for (int i = 0; i < GameScreen.patterns_.Length; i++)
-            //{
-            //GameScreen.patterns_[i] = new GameScreen.Pattern(i, list[i].width, list[i].height);
-            //}
-            //GameScreen.selectable_patterns_count_ = (uint)list.Count;
-            //}
-
-            [HarmonyPatch(typeof(GameUiConfigScreenResolutionList), "Entry")] // Modify Screen Resolution Selection
+            [HarmonyPatch(typeof(DbPlayerCore), "ApplyConfigScreen", new Type[] { typeof(FullScreenMode), typeof(Vector2Int) })]
             [HarmonyPrefix]
-            public static bool CustomResolutions()
+            public static bool ApplyConfigResolution()
             {
-                var c = FindObjectsOfType<GameUiConfigScreenResolutionList>();
-                _log.LogInfo("Found " + c[0].name + " possessing a GameUiConfigScreenResolutionList component.");
-                var newResList = c[0].gameObject.AddComponent(typeof(CustomConfigScreenResolutionList)) as CustomConfigScreenResolutionList;
-                var ogResList  = c[0].gameObject.GetComponent(typeof(GameUiConfigScreenResolutionList)) as GameUiConfigScreenResolutionList;
-                if (newResList != null) {
-                    newResList.Entry();
-                    if (ogResList != null) {
-                        ogResList.enabled = false; // Would probably be better if we just disabled the original component.
-                    }
-                }
-                else { _log.LogError("New Resolution List returned null."); }
+                Screen.SetResolution(SvSFix._iHorizontalResolution.Value, SvSFix._iVerticalResolution.Value, DbPlayerCore.ConvertConfigScreenMode());
                 return false;
             }
+
+            //[HarmonyPatch(typeof(GameUiConfigScreenResolutionList), "Entry")] // Modify Screen Resolution Selection
+            //[HarmonyPrefix]
+            //public static bool CustomResolutions(GameUiConfigScreenResolutionList __instance)
+            //{
+                //GameUiConfigDropDownList.Local local_ = this.local_;
+                //if (local_ != null) {
+                    //local_.Heading.Renew(StrInterface.UI_CONFIG_LIST_GENERAL_SCREEN_RESOLUTION);
+                //}
+                //GameUiConfigDropDownList.Local local_2 = this.local_;
+                //if (((local_2 != null) ? local_2.Listing : null) == null) {
+                    //return;
+                //}
+                //OSB.GetShared();
+                //string @string = GameUiAccessor.GetString(StrInterface.UI_CONFIG_PARAM_RESOLUTION);
+                //List<ResolutionManager.resolution> list = ResolutionManager.ScreenResolutions().ToList<ResolutionManager.resolution>();
+                //for (int i = 0; i < list.Count; i++) {
+                    //this.local_.Listing.Add(OSB.Start.AppendFormat(@string, list[i].width, list[i].height));
+                //}
+                //this.local_.Entry();
+                //return false;
+            //}
         }
 
         [HarmonyPatch]
