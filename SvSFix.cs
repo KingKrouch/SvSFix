@@ -7,17 +7,27 @@ using BepInEx.Logging;
 using Game.Cinema;
 using Game.Input.Local;
 using Game.UI;
+using Game.UI.Dungeon;
 using Game.UI.Local;
 using Game.UI.MainMenu;
+using Game.UI.MainMenu.Common;
+using Game.UI.MainMenu.Disc;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Rendering.Universal;
 using Game.UI.MainMenu.Local;
+using Game.UI.MainMenu.Mintubu;
 using Game.UI.MainMenu.Status;
+using Game.UI.MainMenu.Status.Parts;
+using Game.UI.PhotoMode;
+using IF.ED;
+using IF.GameMain.Splash;
+using IF.GameMain.Splash.Config;
 using IF.PhotoMode.Control;
 using IF.PhotoMode.Imaging;
 using IF.Steam;
+using IF.URP.RendererFeature.GaussianBlur;
 using KingKrouch.Utility.Helpers;
 using Steamworks;
 using SvSFix.Controllers;
@@ -263,11 +273,11 @@ namespace SvSFix
             InitConfig();
             LoadGraphicsSettings(); //TODO: Figure out why this is spitting an error
             // Creates our custom components, and prints a log statement if it failed or not.
-            var createdBlackBarActor = CreateBlackBars();
-            if (createdBlackBarActor) {
-                _log.LogInfo("Adding BlackBarController Hooks.");
-                Harmony.CreateAndPatchAll(typeof(BlackBarControllerFunctionality));
-            }
+            //var createdBlackBarActor = CreateBlackBarsActor();
+            //if (createdBlackBarActor) {
+                //_log.LogInfo("Adding BlackBarController Hooks.");
+                //Harmony.CreateAndPatchAll(typeof(BlackBarControllerFunctionality));
+            //}
             //else { Log.LogError("Couldn't create Pillarbox Actor."); }
             var createdFramelimiter = InitializeFramelimiter();
             if (createdFramelimiter) {
@@ -298,7 +308,7 @@ namespace SvSFix
             return true;
         }
 
-        private static bool CreateBlackBars()
+        public static bool CreateBlackBarsActor()
         {
             // Creates our BlackBarController prefab by hooking into Unity's AssetBundles system.
             // By default, SvS uses Unity 2021.2.5f1, keeping that in mind in case I need to use AssetBundles again for whatever reason.
@@ -670,26 +680,215 @@ namespace SvSFix
             private const float OriginalAspectRatio = 1.7777778f;
             private static float _newSizeX = 3840f;
             private static float _newSizeY = 2160f;
+            public static bool in16x9Menu = false;
 
             private static AspectRatioFitter GameUiMainMenuStatusScaler;
+            private static AspectRatioFitter GameUiMainMenuDiscScaler;
+            private static AspectRatioFitter GameUiMainMenuMintubuScaler;
+            private static AspectRatioFitter GameUiFullScreenMiniMapScaler;
+
+            [HarmonyPatch(typeof(GameUiMainMenuMintubu), nameof(GameUiMainMenuMintubu.Open), new Type[] { typeof(bool) })]
+            [HarmonyPostfix]
+            public static void GameUiMainMenuMintubuOpen()
+            {
+                _log.LogInfo("Opened Chirper Menu.");
+                // So we are essentially gonana look for an object with the MainMenuTop component, and then check if it belongs to a parent of GameUiMainMenuStatus before creating the aspect ratio fitter component.
+                var menuChirper = FindObjectsOfType<GameUiMainMenuMintubu>();
+                //menuTop[0].transform.parent == FindObjectOfType(GameUiMainMenuStatus);
+                if (GameUiMainMenuMintubuScaler == null)
+                {
+                    _log.LogInfo("Found " + menuChirper[0].name + " possessing a GameUiMainMenuMintubu component.");
+                    var transform = menuChirper[0].transform.Find("Canvas/Root");
+                    GameUiMainMenuMintubuScaler = transform.gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
+                    if (GameUiMainMenuMintubuScaler != null) {
+                        GameUiMainMenuMintubuScaler.aspectRatio = OriginalAspectRatio;
+                        GameUiMainMenuMintubuScaler.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                    }
+                }
+            }
+
+            [HarmonyPatch(typeof(SplashSequenceManager), nameof(SplashSequenceManager.Initialize), new Type[] { typeof(SplashSequence), typeof(Action) })]
+            [HarmonyPostfix]
+            public static void SplashSequenceManagerInit()
+            {
+                
+            }
+
+            [HarmonyPatch(typeof(GameUiPhotoMode), nameof(GameUiPhotoMode.Ready))]
+            [HarmonyPostfix]
+            public static void GameUiPhotoModeReady() // TODO: Fix hook not working.
+            {
+                _log.LogInfo("Opened Photo Mode.");
+                // So we are essentially gonana look for an object with the MainMenuTop component, and then check if it belongs to a parent of GameUiMainMenuStatus before creating the aspect ratio fitter component.
+                var menuPhotoMode = FindObjectsOfType<GameUiPhotoMode>();
+                //menuTop[0].transform.parent == FindObjectOfType(GameUiMainMenuStatus);
+                _log.LogInfo("Found " + menuPhotoMode[0].name + " possessing a GameUiPhotoMode component.");
+                var transform = menuPhotoMode[0].transform.Find("Canvas/Root");
+                RectTransform photoModeTransform = transform.GetComponent<RectTransform>();
+                
+                float currentAspectRatio = Screen.width / (float)Screen.height;
+                if (currentAspectRatio > OriginalAspectRatio) {
+                    photoModeTransform.anchorMax = new Vector2(currentAspectRatio / OriginalAspectRatio, 0.5f);
+                }
+                else if (currentAspectRatio < OriginalAspectRatio) {
+                    // TODO: Figure out why narrower aspect ratios results in the left and right being cut off, alongside the top and bottom appearing more egg-like.
+                    photoModeTransform.anchorMax = new Vector2(0.5f, OriginalAspectRatio / currentAspectRatio);
+                }
+            }
+
+            [HarmonyPatch(typeof(GameUiMainMenuCharaSelect), nameof(GameUiMainMenuCharaSelect.SetActive), new Type[] { typeof(bool), typeof(bool) })]
+            [HarmonyPostfix]
+            public static void GameUiMainMenuCharaSelectSetActive() // TODO: Fix hook not working.
+            {
+                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var gameUiMainMenuCharaSelect = FindObjectsOfType<GameUiMainMenuCharaSelect>();
+                var transformCharaSelect = gameUiMainMenuCharaSelect[0].transform.Find("Canvas/Root");
+                var rectTransformCharaSelect = transformCharaSelect.GetComponent<RectTransform>();
+                
+                if (currentAspectRatio > OriginalAspectRatio)
+                {
+                    float anchor = (float)Math.Round(1 - (((1 - (OriginalAspectRatio / currentAspectRatio)) * 0.5) / 0.5));
+                    rectTransformCharaSelect.anchorMin = new Vector2(anchor, 1);
+                    rectTransformCharaSelect.anchorMax = new Vector2(anchor,1);
+                }
+                else if (currentAspectRatio < OriginalAspectRatio) {
+                    rectTransformCharaSelect.anchorMin = new Vector2(1,1);
+                    rectTransformCharaSelect.anchorMax = new Vector2(1,1);
+                }
+            }
+
+            [HarmonyPatch(typeof(EdManager), nameof(EdManager.Play))]
+            [HarmonyPostfix]
+            public static void EdManagerPlay()
+            {
+                _log.LogInfo("Movie Playing.");
+                var edManager = FindObjectsOfType<EdManager>();
+                var transform = edManager[0].transform.Find("Canvas");
+                AspectRatioFitter arFitter = transform.GetComponent<AspectRatioFitter>();
+                if (arFitter != null) {
+                    arFitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                }
+                
+                // For the ScrollView, we need to adjust the RectTransform.AnchorMin.x property to a centered 16:9 portion between 0 and 1.
+            }
+
+            [HarmonyPatch(typeof(GameUiKeyAssign), nameof(GameUiKeyAssign.Open), new Type[] { typeof(bool) })]
+            [HarmonyPostfix]
+            public static void GameUiKeyAssignOpen()
+            {
+                // Fix text hints for ultrawide monitors
+                var currentAspectRatio = Screen.width / (float)Screen.height;
+                
+                var keyAssign = FindObjectsOfType<GameUiKeyAssign>();
+                var transformKeyAssign = keyAssign[0].transform.Find("Canvas/Root/Frame0/Trunk");
+                var rectTransformKeyAssign = transformKeyAssign.GetComponent<RectTransform>();
+                
+                var transformFrame2 = keyAssign[0].transform.Find("Canvas/Root/Frame2");
+                var rectTransformFrame2 = transformFrame2.GetComponent<RectTransform>();
+                var transformFrame3 = keyAssign[0].transform.Find("Canvas/Root/Frame3");
+                var rectTransformFrame3 = transformFrame3.GetComponent<RectTransform>();
+
+                if (GameUiFullScreenMiniMapScaler == null) {
+                    GameUiFullScreenMiniMapScaler = transformKeyAssign.gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
+                    if (GameUiFullScreenMiniMapScaler != null) {
+                        GameUiFullScreenMiniMapScaler.aspectRatio = OriginalAspectRatio;
+                        GameUiFullScreenMiniMapScaler.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                    }
+                }
+                
+                if (currentAspectRatio > OriginalAspectRatio) {
+                    rectTransformFrame2.offsetMin = new Vector2((float)Math.Round(3840f / (OriginalAspectRatio / currentAspectRatio)) * -1, rectTransformFrame2.offsetMin.y);
+                    rectTransformFrame3.offsetMin = new Vector2((float)Math.Round(3840f / (OriginalAspectRatio / currentAspectRatio)) * -1, rectTransformFrame2.offsetMin.y);
+                    rectTransformKeyAssign.pivot = new Vector2( ((1 - (OriginalAspectRatio / currentAspectRatio)) + 0.5f), 0.5f);
+                }
+                else if (currentAspectRatio < OriginalAspectRatio) {
+                    rectTransformFrame2.offsetMin = new Vector2(3840f * -1, rectTransformFrame2.offsetMin.y);
+                    rectTransformFrame3.offsetMin = new Vector2(3840f * -1, rectTransformFrame2.offsetMin.y);
+                    rectTransformKeyAssign.pivot = new Vector2(0.5f, 0.5f);
+                }
+            }
+
+            [HarmonyPatch(typeof(GameUiMainMenuMintubu), "Close")]
+            [HarmonyPostfix]
+            public static void GameUiMainMenuMintubuClose()
+            {
+                _log.LogInfo("Closed Chirper Menu.");
+            }
 
             [HarmonyPatch(typeof(GameUiMainMenuStatus), nameof(GameUiMainMenuStatus.Open))]
             [HarmonyPostfix]
-            public static void AddAspectRatioFitter()
+            public static void GameUiMainMenuStatusOpen()
             {
+                _log.LogInfo("Opened Status Menu.");
                 // So we are essentially gonana look for an object with the MainMenuTop component, and then check if it belongs to a parent of GameUiMainMenuStatus before creating the aspect ratio fitter component.
-                var menuTop = FindObjectsOfType<GameUiMainMenuTop>();
+                var menuStatus = FindObjectsOfType<GameUiMainMenuStatus>();
                 //menuTop[0].transform.parent == FindObjectOfType(GameUiMainMenuStatus);
                 if (GameUiMainMenuStatusScaler == null)
                 {
-                    _log.LogInfo("Found " + menuTop[0].name + " possessing a GameUiMainMenuStatus component.");
-                    GameUiMainMenuStatusScaler = menuTop[0].gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
-                    if (GameUiMainMenuStatusScaler != null)
-                    {
+                    _log.LogInfo("Found " + menuStatus[0].name + " possessing a GameUiMainMenuStatus component.");
+                    var transform = menuStatus[0].transform.Find("Canvas/Root");
+                    GameUiMainMenuStatusScaler = transform.gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
+                    if (GameUiMainMenuStatusScaler != null) {
                         GameUiMainMenuStatusScaler.aspectRatio = OriginalAspectRatio;
                         GameUiMainMenuStatusScaler.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
                     }
                 }
+            }
+
+            [HarmonyPatch(typeof(GameUiMainMenuStatus), "Close")]
+            [HarmonyPostfix]
+            public static void GameUiMainMenuStatusClose()
+            {
+                _log.LogInfo("Closed Status Menu.");
+            }
+            
+            [HarmonyPatch(typeof(GameUiMainMenuDisc), nameof (GameUiMainMenuDisc.Open))]
+            [HarmonyPostfix]
+            public static void GameUiMainMenuDiscOpen()
+            {
+                // So we are essentially gonana look for an object with the MainMenuTop component, and then check if it belongs to a parent of GameUiMainMenuStatus before creating the aspect ratio fitter component.
+                var menuDisc = FindObjectsOfType<GameUiMainMenuDisc>();
+                if (GameUiMainMenuDiscScaler == null)
+                {
+                    _log.LogInfo("Found " + menuDisc[0].name + " possessing a GameUiMainMenuDisc component.");
+                    var transform = menuDisc[0].transform.Find("Canvas/Root");
+                    GameUiMainMenuDiscScaler = transform.gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
+                    if (GameUiMainMenuDiscScaler != null) {
+                        GameUiMainMenuDiscScaler.aspectRatio = OriginalAspectRatio;
+                        GameUiMainMenuDiscScaler.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                    }
+                }
+            }
+
+            [HarmonyPatch(typeof(GameUiDungeonAreaMove), nameof(GameUiDungeonAreaMove.Open), new Type[] { typeof(int) })]
+            [HarmonyPostfix]
+            public static void GameUiDungeonAreaMoveOpen()
+            {
+                _log.LogInfo("Opened Dungeon Area Move Menu.");
+                var dungeonAreaMove = FindObjectsOfType<GameUiDungeonAreaMove>();
+                var uiOverlay = dungeonAreaMove[0].gameObject.transform.Find("Canvas/Root/Back");
+                uiOverlay.localScale = new Vector3(Screen.width, Screen.height, 1.00f);
+            }
+            
+            [HarmonyPatch(typeof(GameUiDungeonAreaMove), nameof(GameUiDungeonAreaMove.Close))]
+            [HarmonyPostfix]
+            public static void GameUiDungeonAreaMoveClose()
+            {
+                _log.LogInfo("Closed Dungeon Area Move Menu.");
+            }
+
+            [HarmonyPatch(typeof(GameUiDungeonFullMap), nameof(GameUiDungeonFullMap.Open))]
+            [HarmonyPostfix]
+            public static void GameUiDungeonFullMapOpen()
+            {
+                _log.LogInfo("Closed Dungeon Full Map Menu.");
+            }
+
+            [HarmonyPatch(typeof(GameUiDungeonFullMap), nameof(GameUiDungeonFullMap.Close))]
+            [HarmonyPostfix]
+            public static void GameUiDungeonFullMapClose()
+            {
+                _log.LogInfo("Closed Dungeon Full Map Menu.");
             }
 
             [HarmonyPatch(typeof(GuideMapShaderUtility), nameof(GuideMapShaderUtility.SetMaterialMaskParameter))]
@@ -724,15 +923,6 @@ namespace SvSFix
                 return false;
             }
 
-            [HarmonyPatch(typeof(Game.UI.KeyAssign.Local.GameUiKeyAssignParts.Frame), "Awake")]
-            [HarmonyPrefix]
-            public static bool UpdatePosition(Game.UI.KeyAssign.Local.GameUiKeyAssignParts.Frame __instance)
-            {
-                // Check if belongs to a object named Frame2, and if so, change RectTransform.offsetMin to horizontal aspect ratio equivalent of 3840x2160
-                // Check if belongs to a object named Frame0 (Pause Menu), and if so, change RectTransform.anchoredPosition to (-660,0) at 3440x1440, for example
-                return true;
-            }
-            
             //[HarmonyPatch(typeof(SplashSequenceManager), "ShowImage", new Type[] { typeof(SplashMedia) })]
             //[HarmonyPatch(typeof(SplashSequenceManager), "PlayVideo", new Type[] { typeof(string), typeof(bool) })]
             //[HarmonyPostfix]
