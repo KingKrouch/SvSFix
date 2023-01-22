@@ -179,15 +179,16 @@ namespace SvSFix
         public static ConfigEntry<bool> _bDisableSteamInput; // For those that don't want to use SteamInput, absolutely hate it being forced, and would rather use Unity's built-in input system.
         
         // Resolution Config
+        public static ConfigEntry<bool> _bForceCustomResolution;
         public static ConfigEntry<int> _iHorizontalResolution;
         public static ConfigEntry<int> _iVerticalResolution;
         
         private void InitConfig()
         {
             // Aspect Ratio Config
-            _bOriginalUIAspectRatio = Config.Bind("Resolution", "Original UI AspectRatio", true,
+            _bOriginalUIAspectRatio = Config.Bind("Resolution", "Original UI Aspect Ratio", true,
                 "On: Presents UI aspect ratio at 16:9 screen space, Off: Spanned UI.");
-            _bMajorAxisFOVScaling = Config.Bind("Resolution", "Major-Axis FOVScaling", true,
+            _bMajorAxisFOVScaling = Config.Bind("Resolution", "Major-Axis FOV Scaling", true,
                 "On: Vert- Behavior below 16:9, Off: Default Hor+ Behavior.");
             _bPresentCutscenesWithOriginalAspectRatio = Config.Bind("Resolution", "Present Cutscenes At Original Aspect Ratio", false,
                 "On: Letterboxes/Pillarboxes cutscenes to display in 16:9, Off: Presents cutscenes without black bars (Default).");
@@ -261,8 +262,11 @@ namespace SvSFix
             _bDisableSteamInput = Config.Bind("Input", "Force Disable SteamInput", false,
                 "Self Explanatory. Prevents SteamInput from ever running, forcefully, for those using DS4Windows/DualSenseX or wanting native controller support. Make sure to disable SteamInput in the controller section of the game's properties on Steam alongside this option.");
             
+            // Resolution Config
+            _bForceCustomResolution = Config.Bind("Resolution", "Force Custom Resolution", false,
+                "Self Explanatory. A temporary toggle for custom resolutions until I can figure out how to go about removing the resolution count restrictions.");
             _iHorizontalResolution = Config.Bind("Resolution", "Horizontal Resolution", 1280);
-            _iVerticalResolution = Config.Bind("Resolution", "Horizontal Resolution", 720);
+            _iVerticalResolution = Config.Bind("Resolution", "Vertical Resolution", 720);
         }
         private void Awake()
         {
@@ -287,7 +291,7 @@ namespace SvSFix
             // Finally, runs our UI and Framerate Patches.
             Harmony.CreateAndPatchAll(typeof(UIPatches));
             Harmony.CreateAndPatchAll(typeof(FrameratePatches));
-            //Harmony.CreateAndPatchAll(typeof(ResolutionPatches));
+            Harmony.CreateAndPatchAll(typeof(ResolutionPatches));
             Harmony.CreateAndPatchAll(typeof(FOVPatches));
             Harmony.CreateAndPatchAll(typeof(InputPatches));
             Harmony.CreateAndPatchAll(typeof(PhotoModePatches));
@@ -714,8 +718,8 @@ namespace SvSFix
                 
             }
 
-            [HarmonyPatch(typeof(GameUiPhotoMode), nameof(GameUiPhotoMode.Ready))]
-            [HarmonyPostfix]
+            //[HarmonyPatch(typeof(GameUiPhotoMode), nameof(GameUiPhotoMode.Ready))]
+            //[HarmonyPostfix]
             public static void GameUiPhotoModeReady() // TODO: Fix hook not working.
             {
                 _log.LogInfo("Opened Photo Mode.");
@@ -736,8 +740,8 @@ namespace SvSFix
                 }
             }
 
-            [HarmonyPatch(typeof(GameUiMainMenuCharaSelect), nameof(GameUiMainMenuCharaSelect.SetActive), new Type[] { typeof(bool), typeof(bool) })]
-            [HarmonyPostfix]
+            //[HarmonyPatch(typeof(GameUiMainMenuCharaSelect), nameof(GameUiMainMenuCharaSelect.SetActive), new Type[] { typeof(bool), typeof(bool) })]
+            //[HarmonyPostfix]
             public static void GameUiMainMenuCharaSelectSetActive() // TODO: Fix hook not working.
             {
                 var currentAspectRatio = Screen.width / (float)Screen.height;
@@ -757,19 +761,20 @@ namespace SvSFix
                 }
             }
 
-            [HarmonyPatch(typeof(EdManager), nameof(EdManager.Play))]
+            [HarmonyPatch(typeof(EdManager), nameof(EdManager.Play))] // We need to adjust the positioning of the credits scrolling to a 16:9 portion on-screen
             [HarmonyPostfix]
             public static void EdManagerPlay()
             {
                 _log.LogInfo("Movie Playing.");
-                var edManager = FindObjectsOfType<EdManager>();
-                var transform = edManager[0].transform.Find("Canvas");
-                AspectRatioFitter arFitter = transform.GetComponent<AspectRatioFitter>();
-                if (arFitter != null) {
-                    arFitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-                }
-                
                 // For the ScrollView, we need to adjust the RectTransform.AnchorMin.x property to a centered 16:9 portion between 0 and 1.
+            }
+
+            [HarmonyPatch(typeof(AspectRatioFitter), "OnEnable")] // This should fix the credits video scaling.
+            [HarmonyPostfix]
+            public static void ForceAspectRatioFit(AspectRatioFitter __instance)
+            {
+                __instance.aspectRatio = OriginalAspectRatio;
+                __instance.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
             }
 
             [HarmonyPatch(typeof(GameUiKeyAssign), nameof(GameUiKeyAssign.Open), new Type[] { typeof(bool) })]
@@ -777,34 +782,73 @@ namespace SvSFix
             public static void GameUiKeyAssignOpen()
             {
                 // Fix text hints for ultrawide monitors
+                FixFrame0();
+                FixFrame2();
+                FixFrame3();
+            }
+            
+            public static void FixFrame0()
+            {
                 var currentAspectRatio = Screen.width / (float)Screen.height;
                 
                 var keyAssign = FindObjectsOfType<GameUiKeyAssign>();
-                var transformKeyAssign = keyAssign[0].transform.Find("Canvas/Root/Frame0/Trunk");
-                var rectTransformKeyAssign = transformKeyAssign.GetComponent<RectTransform>();
+                if (keyAssign != null) {
+                    var transformKeyAssign = keyAssign[0].transform.Find("Canvas/Root/Frame0/Trunk");
+                    if (transformKeyAssign != null) {
+                        var rectTransformKeyAssign = transformKeyAssign.GetComponent<RectTransform>(); // TODO: Figure out why this returns null. The transform is right.
+                        if (rectTransformKeyAssign != null) {
+                            if (currentAspectRatio > OriginalAspectRatio) {
+                                rectTransformKeyAssign.pivot = new Vector2(((1 - (OriginalAspectRatio / currentAspectRatio)) + 0.5f), 0.5f);
+                            }
+                            else if (currentAspectRatio < OriginalAspectRatio) {
+                                rectTransformKeyAssign.pivot = new Vector2(0.5f, 0.5f);
+                            }
+                        }
+                        else{ _log.LogError("rectTransformKeyAssign returned null."); }
+                        if (GameUiFullScreenMiniMapScaler == null) {
+                            _log.LogInfo("GameUiFullscreenMinimapScaler returned null, creating component.");
+                            GameUiFullScreenMiniMapScaler = transformKeyAssign.gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
+                            if (GameUiFullScreenMiniMapScaler != null) {
+                                GameUiFullScreenMiniMapScaler.aspectRatio = OriginalAspectRatio;
+                                GameUiFullScreenMiniMapScaler.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                            }
+                        }
+                    }
+                    else{ _log.LogError("transformKeyAssign returned null."); }
+                }
+                else{ _log.LogError("keyAssign returned null."); }
+            }
+
+            public static void FixFrame2()
+            {
+                var currentAspectRatio = Screen.width / (float)Screen.height;
                 
+                var keyAssign = FindObjectsOfType<GameUiKeyAssign>();
                 var transformFrame2 = keyAssign[0].transform.Find("Canvas/Root/Frame2");
                 var rectTransformFrame2 = transformFrame2.GetComponent<RectTransform>();
-                var transformFrame3 = keyAssign[0].transform.Find("Canvas/Root/Frame3");
-                var rectTransformFrame3 = transformFrame3.GetComponent<RectTransform>();
-
-                if (GameUiFullScreenMiniMapScaler == null) {
-                    GameUiFullScreenMiniMapScaler = transformKeyAssign.gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
-                    if (GameUiFullScreenMiniMapScaler != null) {
-                        GameUiFullScreenMiniMapScaler.aspectRatio = OriginalAspectRatio;
-                        GameUiFullScreenMiniMapScaler.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-                    }
-                }
                 
                 if (currentAspectRatio > OriginalAspectRatio) {
                     rectTransformFrame2.offsetMin = new Vector2((float)Math.Round(3840f / (OriginalAspectRatio / currentAspectRatio)) * -1, rectTransformFrame2.offsetMin.y);
-                    rectTransformFrame3.offsetMin = new Vector2((float)Math.Round(3840f / (OriginalAspectRatio / currentAspectRatio)) * -1, rectTransformFrame2.offsetMin.y);
-                    rectTransformKeyAssign.pivot = new Vector2( ((1 - (OriginalAspectRatio / currentAspectRatio)) + 0.5f), 0.5f);
                 }
                 else if (currentAspectRatio < OriginalAspectRatio) {
                     rectTransformFrame2.offsetMin = new Vector2(3840f * -1, rectTransformFrame2.offsetMin.y);
-                    rectTransformFrame3.offsetMin = new Vector2(3840f * -1, rectTransformFrame2.offsetMin.y);
-                    rectTransformKeyAssign.pivot = new Vector2(0.5f, 0.5f);
+                    
+                }
+            }
+
+            public static void FixFrame3()
+            {
+                var currentAspectRatio = Screen.width / (float)Screen.height;
+                
+                var keyAssign = FindObjectsOfType<GameUiKeyAssign>();
+                var transformFrame3 = keyAssign[0].transform.Find("Canvas/Root/Frame3");
+                var rectTransformFrame3 = transformFrame3.GetComponent<RectTransform>();
+                
+                if (currentAspectRatio > OriginalAspectRatio) {
+                    rectTransformFrame3.offsetMin = new Vector2((float)Math.Round(3840f / (OriginalAspectRatio / currentAspectRatio)) * -1, rectTransformFrame3.offsetMin.y);
+                }
+                else if (currentAspectRatio < OriginalAspectRatio) {
+                    rectTransformFrame3.offsetMin = new Vector2(3840f * -1, rectTransformFrame3.offsetMin.y);
                 }
             }
 
@@ -937,21 +981,35 @@ namespace SvSFix
         [HarmonyPatch]
         public class ResolutionPatches
         {
-            public static int resolutionIndex = 0;
-            public static List<ResolutionManager.Resolution> list = ResolutionManager.ScreenResolutions().ToList<ResolutionManager.Resolution>();
+
+            [HarmonyPatch(typeof(DbPlayerCore), nameof(DbPlayerCore.ApplyConfigScreen), new Type[] { typeof(FullScreenMode), typeof(Vector2Int) })]
+            [HarmonyPrefix]
+            public static bool ForceCustomResolution(FullScreenMode mode, Vector2Int size) // I do plan on revising this once I figure out how to unhardcode the resolution options. Gonna redirect that to writing to our config file.
+            {
+                if (!_bForceCustomResolution.Value) {
+                    Screen.SetResolution(size.x, size.y, DbPlayerCore.ConvertConfigScreenMode());
+                }
+                else {
+                    Screen.SetResolution(_iHorizontalResolution.Value, _iVerticalResolution.Value, DbPlayerCore.ConvertConfigScreenMode());
+                }
+                return false;
+            }
+            
+            //public static int resolutionIndex = 0;
+            //public static List<ResolutionManager.Resolution> list = ResolutionManager.ScreenResolutions().ToList<ResolutionManager.Resolution>();
             //[HarmonyPatch(typeof(GameScreen), nameof(GameScreen.EnumPattern), MethodType.Enumerator)]
             //[HarmonyTranspiler]
             //static IEnumerator customEnumPattern()
             //{
                 
             //}
-            [HarmonyPatch(typeof(DbPlayerCore), "ApplyConfigScreen", new Type[] { typeof(FullScreenMode), typeof(Vector2Int) })]
-            [HarmonyPrefix]
-            public static bool ApplyConfigResolution()
-            {
-                Screen.SetResolution(SvSFix._iHorizontalResolution.Value, SvSFix._iVerticalResolution.Value, DbPlayerCore.ConvertConfigScreenMode());
-                return false;
-            }
+            //[HarmonyPatch(typeof(DbPlayerCore), "ApplyConfigScreen", new Type[] { typeof(FullScreenMode), typeof(Vector2Int) })]
+            //[HarmonyPrefix]
+            //public static bool ApplyConfigResolution()
+            //{
+                //Screen.SetResolution(SvSFix._iHorizontalResolution.Value, SvSFix._iVerticalResolution.Value, DbPlayerCore.ConvertConfigScreenMode());
+                //return false;
+            //}
 
             //[HarmonyPatch(typeof(GameUiConfigScreenResolutionList), "Entry")] // Modify Screen Resolution Selection
             //[HarmonyPrefix]
