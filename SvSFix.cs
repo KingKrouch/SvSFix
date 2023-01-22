@@ -7,6 +7,7 @@ using BepInEx.Logging;
 using Game.Cinema;
 using Game.Input.Local;
 using Game.UI;
+using Game.UI.Battle;
 using Game.UI.Dungeon;
 using Game.UI.Local;
 using Game.UI.MainMenu;
@@ -344,7 +345,7 @@ namespace SvSFix
                 return false;
             }
         }
-
+        
         
 
         private static void LoadGraphicsSettings()
@@ -418,6 +419,8 @@ namespace SvSFix
             // 4. Add character height and rotation control.
             // 5. Possibly investigate a free-cam that can be enabled at any point during dungeon exploration or combat.
             
+            private static Vector3 positionBeforeClamping;
+            
             [HarmonyPatch(typeof(Photo), nameof(Photo.Capture), new Type[] { typeof(Camera), typeof(Vector2Int) })]
             [HarmonyPrefix]
             public static bool SteamScreenshotHook(ref Camera target_camera, ref Vector2Int resolution)
@@ -445,21 +448,19 @@ namespace SvSFix
                 return true;
             }
             
-
-            [HarmonyPatch(typeof(CameraControl), "SetPosition", new Type[] { typeof(Vector3) })]
-            [HarmonyPrefix]
-            public static bool RemoveCameraClamping(ref Vector3 position)
+            //[HarmonyPatch(typeof(CameraControl), "SetPosition", new Type[] { typeof(Vector3) })]
+            //[HarmonyPostfix] // This has to be a postfix apparently.
+            public static void GrabPreclampedPosition(ref Vector3 position, CameraControl __instance)
             {
                 //_log.LogInfo("Hooked Camera Clamping!"); // This hook seemingly works, I just need to figure out how to access private info.
-                //if (this.camera_ == null)
-                //{
-                    //return;
-                //}
-                //this.camera_.transform.position = position;
-                //return false
-                return true; // Comment this return statement when you get a fix actually working.
+                positionBeforeClamping = position;
             }
-            //CameraControl.Set
+            //[HarmonyPatch(typeof(CameraControl), "ClampPosition", new Type[] { typeof(Vector3) })]
+            //[HarmonyPostfix] // TODO: Figure out how to get the camera height clamping completely removed for photo mode.
+            public static void RemoveCameraClamping(ref Vector3 position, CameraControl __instance)
+            {
+                position = positionBeforeClamping;
+            }
         }
 
         [HarmonyPatch]
@@ -715,7 +716,7 @@ namespace SvSFix
             [HarmonyPostfix]
             public static void SplashSequenceManagerInit()
             {
-                
+                // TODO: Fix the anchoring issues in the game save notice screen.
             }
 
             //[HarmonyPatch(typeof(GameUiPhotoMode), nameof(GameUiPhotoMode.Ready))]
@@ -779,23 +780,21 @@ namespace SvSFix
 
             [HarmonyPatch(typeof(GameUiKeyAssign), nameof(GameUiKeyAssign.Open), new Type[] { typeof(bool) })]
             [HarmonyPostfix]
-            public static void GameUiKeyAssignOpen()
+            public static void GameUiKeyAssignOpen(GameUiKeyAssign __instance)
             {
                 // Fix text hints for ultrawide monitors
-                FixFrame0();
-                FixFrame2();
-                FixFrame3();
+                FixFrame0(__instance);
+                FixFrame2(__instance);
+                FixFrame3(__instance);
             }
             
-            public static void FixFrame0()
+            public static void FixFrame0(GameUiKeyAssign keyAssign)
             {
                 var currentAspectRatio = Screen.width / (float)Screen.height;
-                
-                var keyAssign = FindObjectsOfType<GameUiKeyAssign>();
                 if (keyAssign != null) {
-                    var transformKeyAssign = keyAssign[0].transform.Find("Canvas/Root/Frame0/Trunk");
+                    var transformKeyAssign = keyAssign.transform.Find("Canvas/Root/Frame0/Trunk");
                     if (transformKeyAssign != null) {
-                        var rectTransformKeyAssign = transformKeyAssign.GetComponent<RectTransform>(); // TODO: Figure out why this returns null. The transform is right.
+                        var rectTransformKeyAssign = transformKeyAssign.GetComponent<RectTransform>(); // TODO: Why are you NULLing me? I'm right!
                         if (rectTransformKeyAssign != null) {
                             if (currentAspectRatio > OriginalAspectRatio) {
                                 rectTransformKeyAssign.pivot = new Vector2(((1 - (OriginalAspectRatio / currentAspectRatio)) + 0.5f), 0.5f);
@@ -819,12 +818,10 @@ namespace SvSFix
                 else{ _log.LogError("keyAssign returned null."); }
             }
 
-            public static void FixFrame2()
+            public static void FixFrame2(GameUiKeyAssign keyAssign)
             {
                 var currentAspectRatio = Screen.width / (float)Screen.height;
-                
-                var keyAssign = FindObjectsOfType<GameUiKeyAssign>();
-                var transformFrame2 = keyAssign[0].transform.Find("Canvas/Root/Frame2");
+                var transformFrame2 = keyAssign.transform.Find("Canvas/Root/Frame2");
                 var rectTransformFrame2 = transformFrame2.GetComponent<RectTransform>();
                 
                 if (currentAspectRatio > OriginalAspectRatio) {
@@ -832,16 +829,13 @@ namespace SvSFix
                 }
                 else if (currentAspectRatio < OriginalAspectRatio) {
                     rectTransformFrame2.offsetMin = new Vector2(3840f * -1, rectTransformFrame2.offsetMin.y);
-                    
                 }
             }
 
-            public static void FixFrame3()
+            public static void FixFrame3(GameUiKeyAssign keyAssign)
             {
                 var currentAspectRatio = Screen.width / (float)Screen.height;
-                
-                var keyAssign = FindObjectsOfType<GameUiKeyAssign>();
-                var transformFrame3 = keyAssign[0].transform.Find("Canvas/Root/Frame3");
+                var transformFrame3 = keyAssign.transform.Find("Canvas/Root/Frame3");
                 var rectTransformFrame3 = transformFrame3.GetComponent<RectTransform>();
                 
                 if (currentAspectRatio > OriginalAspectRatio) {
@@ -851,6 +845,105 @@ namespace SvSFix
                     rectTransformFrame3.offsetMin = new Vector2(3840f * -1, rectTransformFrame3.offsetMin.y);
                 }
             }
+
+            [HarmonyPatch(typeof(GameUiDungeonMemberStatus), nameof(GameUiDungeonMemberStatus.Open))]
+            [HarmonyPostfix]
+            public static void CharacterDungeonUiAnchoring(GameUiDungeonMemberStatus __instance)
+            {
+                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var transform = __instance.transform.Find("Canvas/Root");
+                if (transform != null) {
+                    var rectTransform = transform.GetComponent<RectTransform>();
+                    if (rectTransform != null) {
+                        rectTransform.anchorMax = !_bOriginalUIAspectRatio.Value ? new Vector2((float)(((1 - (OriginalAspectRatio / currentAspectRatio)) * 0.5) / 0.5), 0.5f) : new Vector2(0.5f, 0.5f);
+                    }
+                    else{ _log.LogError("GameUiDungeonMemberStatusRectTransform returned null."); }
+                }
+                else{ _log.LogError("GameUiDungeonMemberStatusTransform returned null."); }
+            }
+
+            [HarmonyPatch(typeof(GameUiDungeonMiniMap), nameof(GameUiDungeonMiniMap.Open))]
+            [HarmonyPostfix]
+            public static void GameUiDungeonMinimapAnchoring(GameUiDungeonMiniMap __instance)
+            {
+                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var transform = __instance.transform.Find("Canvas/Root");
+                if (transform != null) {
+                    var rectTransform = transform.GetComponent<RectTransform>();
+                    if (rectTransform != null) {
+                        rectTransform.anchorMax = _bOriginalUIAspectRatio.Value ? new Vector2((OriginalAspectRatio / currentAspectRatio) ,rectTransform.anchorMax.y) : new Vector2(1, rectTransform.anchorMax.y);
+                    }
+                    else{ _log.LogError("GameUiDungeonMiniMapRectTransform returned null."); }
+                }
+                else{ _log.LogError("GameUiDungeonMiniMapTransform returned null."); }
+            }
+
+            [HarmonyPatch(typeof(GameUiBattleComboSkill), nameof(GameUiBattleComboSkill.Open))]
+            [HarmonyPostfix]
+            public static void GameUiBattleComboSkillAnchoring(GameUiBattleComboSkill __instance)
+            {
+                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var transform = __instance.transform.Find("Canvas/Root");
+                if (transform != null) {
+                    var rectTransform = transform.GetComponent<RectTransform>();
+                    if (rectTransform != null) {
+                        rectTransform.anchorMax = !_bOriginalUIAspectRatio.Value ? new Vector2((OriginalAspectRatio / currentAspectRatio) ,rectTransform.anchorMax.y) : new Vector2(0.5f, rectTransform.anchorMax.y);
+                    }
+                    else{ _log.LogError("GameUiBattleComboSkillRectTransform returned null."); }
+                }
+                else{ _log.LogError("GameUiBattleComboSkillTransform returned null."); }
+            }
+            
+            [HarmonyPatch(typeof(GameUiBattleComboNum), nameof(GameUiBattleComboNum.Open))]
+            [HarmonyPostfix]
+            public static void GameUiBattleComboNumAnchoring(GameUiBattleComboNum __instance)
+            {
+                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var transform = __instance.transform.Find("Canvas/Root");
+                if (transform != null) {
+                    var rectTransform = transform.GetComponent<RectTransform>();
+                    if (rectTransform != null) {
+                        rectTransform.anchorMax = !_bOriginalUIAspectRatio.Value ? new Vector2((OriginalAspectRatio / currentAspectRatio) ,rectTransform.anchorMax.y) : new Vector2(0.5f, rectTransform.anchorMax.y);
+                    }
+                    else{ _log.LogError("GameUiBattleComboNumRectTransform returned null."); }
+                }
+                else{ _log.LogError("GameUiBattleComboNumTransform returned null."); }
+            }
+            
+            [HarmonyPatch(typeof(GameUiBattleChainRecommend), nameof(GameUiBattleChainRecommend.OpenL))]
+            [HarmonyPatch(typeof(GameUiBattleChainRecommend), nameof(GameUiBattleChainRecommend.OpenR))]
+            [HarmonyPostfix]
+            public static void GameUiBattleChainRecommendAnchoring(GameUiBattleChainRecommend __instance)
+            {
+                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var transform = __instance.transform.Find("Canvas/Root");
+                if (transform != null) {
+                    var rectTransform = transform.GetComponent<RectTransform>();
+                    if (rectTransform != null) {
+                        rectTransform.anchorMax = !_bOriginalUIAspectRatio.Value ? new Vector2((OriginalAspectRatio / currentAspectRatio) ,rectTransform.anchorMax.y) : new Vector2(0.5f, rectTransform.anchorMax.y);
+                    }
+                    else{ _log.LogError("GameUiBattleChainRecommendRectTransform returned null."); }
+                }
+                else{ _log.LogError("GameUiBattleChainRecommendTransform returned null."); }
+            }
+            
+            [HarmonyPatch(typeof(GameUiBattleTacticalSkill), nameof(GameUiBattleTacticalSkill.Open))]
+            [HarmonyPostfix]
+            public static void GameUiBattleTacticalSkillAnchoring(GameUiBattleTacticalSkill __instance)
+            {
+                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var transform = __instance.transform.Find("Canvas/Root");
+                if (transform != null) {
+                    var rectTransform = transform.GetComponent<RectTransform>();
+                    if (rectTransform != null) {
+                        rectTransform.anchorMax = !_bOriginalUIAspectRatio.Value ? new Vector2((OriginalAspectRatio / currentAspectRatio) ,rectTransform.anchorMax.y) : new Vector2(0.5f, rectTransform.anchorMax.y);
+                    }
+                    else{ _log.LogError("GameUiBattleTacticalSkillRectTransform returned null."); }
+                }
+                else{ _log.LogError("GameUiBattleTacticalSkillTransform returned null."); }
+            }
+            
+            
 
             [HarmonyPatch(typeof(GameUiMainMenuMintubu), "Close")]
             [HarmonyPostfix]

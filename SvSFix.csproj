@@ -55,6 +55,6 @@
   </ItemGroup>
   
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="&quot;C:\Program Files\Unity 2021.2.5f1\Editor\Data\MonoBleedingEdge\lib\mono\4.5\pdb2mdb.exe&quot; &quot;$(TargetDir)$(ProjectName).dll&quot;&#xD;&#xA;&#xD;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).dll&quot; &quot;C:\Steam\steamapps\common\Neptunia Sisters VS Sisters\BepInEx\plugins&quot;&#xD;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).pdb&quot; &quot;C:\Steam\steamapps\common\Neptunia Sisters VS Sisters\BepInEx\plugins&quot;&#xD;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).deps.json&quot; &quot;C:\Steam\steamapps\common\Neptunia Sisters VS Sisters\BepInEx\plugins&quot;" />
+    <Exec Command="&quot;C:\Program Files\Unity\Hub\Editor\2021.2.5f1\Editor\Data\MonoBleedingEdge\lib\mono\4.5\pdb2mdb.exe&quot; &quot;$(TargetDir)$(ProjectName).dll&quot;&#xA;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).dll&quot; &quot;N:\Steam\steamapps\common\Neptunia Sisters VS Sisters\BepInEx\plugins&quot;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).pdb&quot; &quot;N:\Steam\steamapps\common\Neptunia Sisters VS Sisters\BepInEx\plugins&quot;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).deps.json&quot; &quot;N:\Steam\steamapps\common\Neptunia Sisters VS Sisters\BepInEx\plugins&quot;" />
   </Target>
 </Project>
