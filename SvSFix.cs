@@ -4,6 +4,7 @@ using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+using Game.ADV.Local;
 using Game.Cinema;
 using Game.Input.Local;
 using Game.UI;
@@ -686,6 +687,7 @@ namespace SvSFix
             private static float _newSizeX = 3840f;
             private static float _newSizeY = 2160f;
             public static bool in16x9Menu = false;
+            public static bool inCutscene = false;
 
             private static AspectRatioFitter GameUiMainMenuStatusScaler;
             private static AspectRatioFitter GameUiMainMenuDiscScaler;
@@ -731,7 +733,7 @@ namespace SvSFix
                 var transform = menuPhotoMode[0].transform.Find("Canvas/Root");
                 RectTransform photoModeTransform = transform.GetComponent<RectTransform>();
                 
-                float currentAspectRatio = Screen.width / (float)Screen.height;
+                float currentAspectRatio = SystemCamera3D.GetCamera().aspect;
                 if (currentAspectRatio > OriginalAspectRatio) {
                     photoModeTransform.anchorMax = new Vector2(currentAspectRatio / OriginalAspectRatio, 0.5f);
                 }
@@ -745,7 +747,7 @@ namespace SvSFix
             //[HarmonyPostfix]
             public static void GameUiMainMenuCharaSelectSetActive() // TODO: Fix hook not working.
             {
-                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var currentAspectRatio = SystemCamera3D.GetCamera().aspect;
                 var gameUiMainMenuCharaSelect = FindObjectsOfType<GameUiMainMenuCharaSelect>();
                 var transformCharaSelect = gameUiMainMenuCharaSelect[0].transform.Find("Canvas/Root");
                 var rectTransformCharaSelect = transformCharaSelect.GetComponent<RectTransform>();
@@ -790,14 +792,16 @@ namespace SvSFix
             
             public static void FixFrame0(GameUiKeyAssign keyAssign)
             {
-                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var currentAspectRatio = SystemCamera3D.GetCamera().aspect;
                 if (keyAssign != null) {
                     var transformKeyAssign = keyAssign.transform.Find("Canvas/Root/Frame0/Trunk");
                     if (transformKeyAssign != null) {
                         var rectTransformKeyAssign = transformKeyAssign.GetComponent<RectTransform>(); // TODO: Why are you NULLing me? I'm right!
                         if (rectTransformKeyAssign != null) {
                             if (currentAspectRatio > OriginalAspectRatio) {
-                                rectTransformKeyAssign.pivot = new Vector2(((1 - (OriginalAspectRatio / currentAspectRatio)) + 0.5f), 0.5f);
+                                var pivotEst = (1 - (OriginalAspectRatio / currentAspectRatio)) - ((1 - (OriginalAspectRatio / currentAspectRatio) / 10)); // This is my assumption.
+                                rectTransformKeyAssign.pivot = new Vector2(pivotEst, 0.5f);
+                                //rectTransformKeyAssign.pivot = new Vector2(((1 - (OriginalAspectRatio / currentAspectRatio)) + 0.5f), 0.5f); // Old Formula, doesn't work well, keeping here just in case.
                             }
                             else if (currentAspectRatio < OriginalAspectRatio) {
                                 rectTransformKeyAssign.pivot = new Vector2(0.5f, 0.5f);
@@ -820,12 +824,12 @@ namespace SvSFix
 
             public static void FixFrame2(GameUiKeyAssign keyAssign)
             {
-                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var currentAspectRatio = SystemCamera3D.GetCamera().aspect;
                 var transformFrame2 = keyAssign.transform.Find("Canvas/Root/Frame2");
                 var rectTransformFrame2 = transformFrame2.GetComponent<RectTransform>();
                 
                 if (currentAspectRatio > OriginalAspectRatio) {
-                    rectTransformFrame2.offsetMin = new Vector2((float)Math.Round(3840f / (OriginalAspectRatio / currentAspectRatio)) * -1, rectTransformFrame2.offsetMin.y);
+                    rectTransformFrame2.offsetMin = new Vector2((3840f / (OriginalAspectRatio / currentAspectRatio)) * -1, rectTransformFrame2.offsetMin.y);
                 }
                 else if (currentAspectRatio < OriginalAspectRatio) {
                     rectTransformFrame2.offsetMin = new Vector2(3840f * -1, rectTransformFrame2.offsetMin.y);
@@ -834,12 +838,12 @@ namespace SvSFix
 
             public static void FixFrame3(GameUiKeyAssign keyAssign)
             {
-                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var currentAspectRatio = SystemCamera3D.GetCamera().aspect;
                 var transformFrame3 = keyAssign.transform.Find("Canvas/Root/Frame3");
                 var rectTransformFrame3 = transformFrame3.GetComponent<RectTransform>();
                 
                 if (currentAspectRatio > OriginalAspectRatio) {
-                    rectTransformFrame3.offsetMin = new Vector2((float)Math.Round(3840f / (OriginalAspectRatio / currentAspectRatio)) * -1, rectTransformFrame3.offsetMin.y);
+                    rectTransformFrame3.offsetMin = new Vector2((3840f / (OriginalAspectRatio / currentAspectRatio)) * -1, rectTransformFrame3.offsetMin.y);
                 }
                 else if (currentAspectRatio < OriginalAspectRatio) {
                     rectTransformFrame3.offsetMin = new Vector2(3840f * -1, rectTransformFrame3.offsetMin.y);
@@ -850,28 +854,127 @@ namespace SvSFix
             [HarmonyPostfix]
             public static void CharacterDungeonUiAnchoring(GameUiDungeonMemberStatus __instance)
             {
-                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var currentAspectRatio = SystemCamera3D.GetCamera().aspect;
                 var transform = __instance.transform.Find("Canvas/Root");
                 if (transform != null) {
                     var rectTransform = transform.GetComponent<RectTransform>();
                     if (rectTransform != null) {
-                        rectTransform.anchorMax = !_bOriginalUIAspectRatio.Value ? new Vector2((float)(((1 - (OriginalAspectRatio / currentAspectRatio)) * 0.5) / 0.5), 0.5f) : new Vector2(0.5f, 0.5f);
+                        // TODO: Fix formula to work properly with 32:9 (and wider) aspect ratios. Clearly I'm doing something wrong.
+                        var anchorMax = (((1.0f - (OriginalAspectRatio / currentAspectRatio)) * 0.5f) / 0.5f);
+                        // var anchorMax = (((1.0f - (OriginalAspectRatio / currentAspectRatio)) * 0.5f) / 0.5f); // original formula.
+                        
+                        rectTransform.anchorMax = !_bOriginalUIAspectRatio.Value ? new Vector2(anchorMax, 0.5f) : new Vector2(0.5f, 0.5f);
                     }
                     else{ _log.LogError("GameUiDungeonMemberStatusRectTransform returned null."); }
                 }
                 else{ _log.LogError("GameUiDungeonMemberStatusTransform returned null."); }
             }
 
+            [HarmonyPatch(typeof(AdvIconCustom), MethodType.Constructor)] // TODO: Find a better hook than a constructor.
+            [HarmonyPostfix]
+            public static void AdvIconCustomAdjust(AdvIconCustom __instance)
+            {
+                var currentAspectRatio = SystemCamera3D.GetCamera().aspect;
+                var transform = __instance.transform.Find("Canvas/Root");
+                if (transform != null)
+                {
+                    var rectTransform = transform.GetComponent<RectTransform>();
+                    if (rectTransform != null)
+                    {
+                        // The default is 1.0, but 0.75 is what it needs to be at to be in the proper space in 32:9. 0.5 is half-way
+                        var anchorX = 0.75f;
+                        rectTransform.anchorMax = new Vector2(anchorX, 1);
+                    }
+                    else{ _log.LogError("AdvIconCustomRectTransform returned null."); }
+                }
+                else{ _log.LogError("AdvIconCustomTransform returned null."); }
+            }
+
+            [HarmonyPatch(typeof(GameCinemaAccessor), nameof(GameCinemaAccessor.IsPlaying))]
+            [HarmonyPostfix]
+            public static void GameCinemaPlaying() // TODO: Find working hook for checking whether a cutscene is playing, we will need this for adjusting the AdvIconCustom position.
+            {
+                
+            }
+
+            [HarmonyPatch(typeof(GameAdvCameraManage), nameof(GameAdvCameraManage.Refresh))]
+            [HarmonyPostfix]
+            public static void GameAdvCameraAdjust(GameAdvCameraManage __instance) // TODO: Fix broken hook
+            {
+                var cameraFront = __instance.GetSubCameraSideFront();
+                var cameraBack  = __instance.GetSubCameraSideBack();
+                
+                Vector2 ApproximateOriginalScale()
+                {
+                    // Set up our current aspect ratio and aspect ratio offset.
+                    var currentAspectRatio              = SystemCamera3D.GetCamera().aspect;
+                    var aspectRatioOffset               = OriginalAspectRatio / currentAspectRatio;
+                    // Set up the Horizontal offsets.
+                    var originalAspectRatioApproximateX = SystemCamera3D.GetCamera().pixelWidth * aspectRatioOffset;
+                    // Set up the Vertical offsets.
+                    var originalAspectRatioApproximateY = SystemCamera3D.GetCamera().pixelHeight * aspectRatioOffset;
+                    // Finally return it as a clean Vector2 that we can quickly reference later without reusing a ton of code.
+                    return new Vector2(originalAspectRatioApproximateX, originalAspectRatioApproximateY);
+                }
+
+                if (cameraFront != null)
+                {
+                    var cameraFrontCamComponent = cameraFront.GetComponent<Camera>();
+                    
+                    if (cameraFrontCamComponent != null) {
+                        cameraFrontCamComponent.aspect = OriginalAspectRatio;
+                    }
+                    else { _log.LogError("CameraFront's Camera Component returned null."); }
+                    
+                    var cameraFrontRawImageTransform = cameraFront.transform.Find("AdvScreen/RawImage");
+                    
+                    if (cameraFrontRawImageTransform != null)
+                    {
+                        var cameraFrontRawImageRectTransform = cameraFrontRawImageTransform.GetComponent<RectTransform>();
+                        if (cameraFrontRawImageRectTransform != null) {
+                            cameraFrontRawImageRectTransform.sizeDelta = ApproximateOriginalScale();
+                        }
+                        else { _log.LogError("CameraFront's RectTransform returned null."); }
+                    }
+                    else { _log.LogError("CameraFront's RawImage transform returned null."); }
+                }
+                else { _log.LogError("CameraFront returned null."); }
+                
+                if (cameraBack != null)
+                {
+                    var cameraBackCamComponent = cameraBack.GetComponent<Camera>();
+                    
+                    if (cameraBackCamComponent != null) {
+                        cameraBackCamComponent.aspect = OriginalAspectRatio;
+                    }
+                    else { _log.LogError("CameraBack's Camera Component returned null."); }
+                    
+                    var cameraBackRawImageTransform = cameraFront.transform.Find("AdvScreen/RawImage");
+                    
+                    if (cameraBackRawImageTransform != null)
+                    {
+                        var cameraBackRawImageRectTransform = cameraBackRawImageTransform.GetComponent<RectTransform>();
+                        if (cameraBackRawImageRectTransform != null) {
+                            cameraBackRawImageRectTransform.sizeDelta = ApproximateOriginalScale();
+                        }
+                        else { _log.LogError("CameraBack's RectTransform returned null."); }
+                    }
+                    else { _log.LogError("CameraBack's RawImage transform returned null."); }
+                }
+                else { _log.LogError("CameraBack returned null."); }
+                
+            }
+
             [HarmonyPatch(typeof(GameUiDungeonMiniMap), nameof(GameUiDungeonMiniMap.Open))]
             [HarmonyPostfix]
             public static void GameUiDungeonMinimapAnchoring(GameUiDungeonMiniMap __instance)
             {
-                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var currentAspectRatio = SystemCamera3D.GetCamera().aspect;
                 var transform = __instance.transform.Find("Canvas/Root");
                 if (transform != null) {
                     var rectTransform = transform.GetComponent<RectTransform>();
                     if (rectTransform != null) {
-                        rectTransform.anchorMax = _bOriginalUIAspectRatio.Value ? new Vector2((OriginalAspectRatio / currentAspectRatio) ,rectTransform.anchorMax.y) : new Vector2(1, rectTransform.anchorMax.y);
+                        rectTransform.anchorMax = _bOriginalUIAspectRatio.Value ? new Vector2((0.5f + (1 - (OriginalAspectRatio / currentAspectRatio))) ,rectTransform.anchorMax.y) : new Vector2(1, rectTransform.anchorMax.y);
                     }
                     else{ _log.LogError("GameUiDungeonMiniMapRectTransform returned null."); }
                 }
@@ -882,12 +985,12 @@ namespace SvSFix
             [HarmonyPostfix]
             public static void GameUiBattleComboSkillAnchoring(GameUiBattleComboSkill __instance)
             {
-                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var currentAspectRatio = SystemCamera3D.GetCamera().aspect;
                 var transform = __instance.transform.Find("Canvas/Root");
                 if (transform != null) {
                     var rectTransform = transform.GetComponent<RectTransform>();
                     if (rectTransform != null) {
-                        rectTransform.anchorMax = !_bOriginalUIAspectRatio.Value ? new Vector2((OriginalAspectRatio / currentAspectRatio) ,rectTransform.anchorMax.y) : new Vector2(0.5f, rectTransform.anchorMax.y);
+                        rectTransform.anchorMax = !_bOriginalUIAspectRatio.Value ? new Vector2((0.5f + (1 - (OriginalAspectRatio / currentAspectRatio))) ,rectTransform.anchorMax.y) : new Vector2(0.5f, rectTransform.anchorMax.y);
                     }
                     else{ _log.LogError("GameUiBattleComboSkillRectTransform returned null."); }
                 }
@@ -898,12 +1001,12 @@ namespace SvSFix
             [HarmonyPostfix]
             public static void GameUiBattleComboNumAnchoring(GameUiBattleComboNum __instance)
             {
-                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var currentAspectRatio = SystemCamera3D.GetCamera().aspect;
                 var transform = __instance.transform.Find("Canvas/Root");
                 if (transform != null) {
                     var rectTransform = transform.GetComponent<RectTransform>();
                     if (rectTransform != null) {
-                        rectTransform.anchorMax = !_bOriginalUIAspectRatio.Value ? new Vector2((OriginalAspectRatio / currentAspectRatio) ,rectTransform.anchorMax.y) : new Vector2(0.5f, rectTransform.anchorMax.y);
+                        rectTransform.anchorMax = !_bOriginalUIAspectRatio.Value ?new Vector2((0.5f + (1 - (OriginalAspectRatio / currentAspectRatio))) ,rectTransform.anchorMax.y) : new Vector2(0.5f, rectTransform.anchorMax.y);
                     }
                     else{ _log.LogError("GameUiBattleComboNumRectTransform returned null."); }
                 }
@@ -915,12 +1018,45 @@ namespace SvSFix
             [HarmonyPostfix]
             public static void GameUiBattleChainRecommendAnchoring(GameUiBattleChainRecommend __instance)
             {
-                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var currentAspectRatio = SystemCamera3D.GetCamera().aspect;
                 var transform = __instance.transform.Find("Canvas/Root");
                 if (transform != null) {
                     var rectTransform = transform.GetComponent<RectTransform>();
                     if (rectTransform != null) {
-                        rectTransform.anchorMax = !_bOriginalUIAspectRatio.Value ? new Vector2((OriginalAspectRatio / currentAspectRatio) ,rectTransform.anchorMax.y) : new Vector2(0.5f, rectTransform.anchorMax.y);
+                        rectTransform.anchorMax = !_bOriginalUIAspectRatio.Value ? new Vector2((0.5f + (1 - (OriginalAspectRatio / currentAspectRatio))) ,rectTransform.anchorMax.y) : new Vector2(0.5f, rectTransform.anchorMax.y);
+                    }
+                    else{ _log.LogError("GameUiBattleChainRecommendRectTransform returned null."); }
+                }
+                else{ _log.LogError("GameUiBattleChainRecommendTransform returned null."); }
+            }
+            
+            // Set screen match mode when object has canvas scaler enabled
+            [HarmonyPatch(typeof(CanvasScaler), "OnEnable")]
+            [HarmonyPostfix]
+            public static void SetScreenMatchMode(CanvasScaler __instance)
+            {
+                var currentAspectRatio = SystemCamera3D.GetCamera().aspect;
+                if (currentAspectRatio > OriginalAspectRatio || currentAspectRatio < OriginalAspectRatio)
+                {
+                    __instance.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
+                }
+            }
+            
+            [HarmonyPatch(typeof(GameUiBattleHitDamage), "Awake")]
+            [HarmonyPostfix]
+            public static void GameUiBattleHitDamageAnchoring(GameUiBattleHitDamage __instance)
+            {
+                var currentAspectRatio = SystemCamera3D.GetCamera().aspect;
+                var transform = __instance.transform.Find("Canvas/Root/HitDamage");
+                if (transform != null) {
+                    var rectTransform = transform.GetComponent<RectTransform>();
+                    if (rectTransform != null)
+                    {
+                        float newAnchoredPosX = (3840f / (OriginalAspectRatio / currentAspectRatio)) - (3840f - 3234);
+                        var anchoredPosition = rectTransform.anchoredPosition;
+                        rectTransform.anchoredPosition = !_bOriginalUIAspectRatio.Value ? new Vector2( newAnchoredPosX ,anchoredPosition.y) : new Vector2(3234f, anchoredPosition.y);
+                        var anchoredPosition3D = rectTransform.anchoredPosition3D;
+                        rectTransform.anchoredPosition3D = !_bOriginalUIAspectRatio.Value ? new Vector3( newAnchoredPosX ,anchoredPosition3D.y, anchoredPosition3D.z) : new Vector3(3234f, anchoredPosition3D.y, anchoredPosition3D.z);
                     }
                     else{ _log.LogError("GameUiBattleChainRecommendRectTransform returned null."); }
                 }
@@ -931,19 +1067,19 @@ namespace SvSFix
             [HarmonyPostfix]
             public static void GameUiBattleTacticalSkillAnchoring(GameUiBattleTacticalSkill __instance)
             {
-                var currentAspectRatio = Screen.width / (float)Screen.height;
+                var currentAspectRatio = SystemCamera3D.GetCamera().aspect;
                 var transform = __instance.transform.Find("Canvas/Root");
                 if (transform != null) {
                     var rectTransform = transform.GetComponent<RectTransform>();
                     if (rectTransform != null) {
-                        rectTransform.anchorMax = !_bOriginalUIAspectRatio.Value ? new Vector2((OriginalAspectRatio / currentAspectRatio) ,rectTransform.anchorMax.y) : new Vector2(0.5f, rectTransform.anchorMax.y);
+                        rectTransform.anchorMax = !_bOriginalUIAspectRatio.Value ? new Vector2((0.5f + (1 - (OriginalAspectRatio / currentAspectRatio))) ,rectTransform.anchorMax.y) : new Vector2(0.5f, rectTransform.anchorMax.y);
                     }
                     else{ _log.LogError("GameUiBattleTacticalSkillRectTransform returned null."); }
                 }
                 else{ _log.LogError("GameUiBattleTacticalSkillTransform returned null."); }
             }
             
-            
+            //(0.5 + (1 - (OriginalAspectRatio / currentAspectRatio)))
 
             [HarmonyPatch(typeof(GameUiMainMenuMintubu), "Close")]
             [HarmonyPostfix]
@@ -1004,7 +1140,7 @@ namespace SvSFix
                 _log.LogInfo("Opened Dungeon Area Move Menu.");
                 var dungeonAreaMove = FindObjectsOfType<GameUiDungeonAreaMove>();
                 var uiOverlay = dungeonAreaMove[0].gameObject.transform.Find("Canvas/Root/Back");
-                uiOverlay.localScale = new Vector3(Screen.width, Screen.height, 1.00f);
+                uiOverlay.localScale = new Vector3(SystemCamera3D.GetCamera().pixelWidth, SystemCamera3D.GetCamera().pixelHeight, 1.00f);
             }
             
             [HarmonyPatch(typeof(GameUiDungeonAreaMove), nameof(GameUiDungeonAreaMove.Close))]
@@ -1041,7 +1177,7 @@ namespace SvSFix
                 MGS_GM.Matrix_MulTranslate_Parent(ref matrix, 0.5f, 0.5f, 0f);
                 MGS_GM.Matrix_MulRotZ_Parent(ref matrix, MGS_GM.DegToRad(mask_rotation_degree_z));
                 // Add our new aspect ratio calculation logic.
-                float currentAspectRatio = Screen.width / (float)Screen.height;
+                float currentAspectRatio = SystemCamera3D.GetCamera().aspect;
                 if (currentAspectRatio > OriginalAspectRatio) {
                     _newSizeX = (float)Math.Round(3840f / (OriginalAspectRatio / currentAspectRatio));
                     _newSizeY = 2160f;
@@ -1060,21 +1196,17 @@ namespace SvSFix
                 return false;
             }
 
-            //[HarmonyPatch(typeof(SplashSequenceManager), "ShowImage", new Type[] { typeof(SplashMedia) })]
-            //[HarmonyPatch(typeof(SplashSequenceManager), "PlayVideo", new Type[] { typeof(string), typeof(bool) })]
+            //[HarmonyPatch(typeof(SplashSequenceManager), "HandleSkip")]
             //[HarmonyPostfix]
-            //public static void SkipIntro()
+            //public static void SkipIntro(SplashSequenceManager __instance)
             //{
-                //instance.SkipCurrent(); // Need to write the proper functionality of this, but I just need to find a way of calling these functions when I want to skip opening logos/videos
-                //}
+                //__instance.media_player_.SkipCurrent(); // Need to write the proper functionality of this, but I just need to find a way of calling these functions when I want to skip opening logos/videos
+            //}
         }
-
         
-
         [HarmonyPatch]
         public class ResolutionPatches
         {
-
             [HarmonyPatch(typeof(DbPlayerCore), nameof(DbPlayerCore.ApplyConfigScreen), new Type[] { typeof(FullScreenMode), typeof(Vector2Int) })]
             [HarmonyPrefix]
             public static bool ForceCustomResolution(FullScreenMode mode, Vector2Int size) // I do plan on revising this once I figure out how to unhardcode the resolution options. Gonna redirect that to writing to our config file.
@@ -1087,6 +1219,10 @@ namespace SvSFix
                 }
                 return false;
             }
+            
+            
+            // For now, let's use this
+            
             
             //public static int resolutionIndex = 0;
             //public static List<ResolutionManager.Resolution> list = ResolutionManager.ScreenResolutions().ToList<ResolutionManager.Resolution>();
