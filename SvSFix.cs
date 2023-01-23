@@ -23,6 +23,9 @@ using Game.UI.MainMenu.Mintubu;
 using Game.UI.MainMenu.Status;
 using Game.UI.MainMenu.Status.Parts;
 using Game.UI.PhotoMode;
+using Game.UI.SaveList;
+using Game.UI.World;
+using Game.UI.WorldMap.Local;
 using IF.ED;
 using IF.GameMain.Splash;
 using IF.GameMain.Splash.Config;
@@ -30,6 +33,7 @@ using IF.PhotoMode.Control;
 using IF.PhotoMode.Imaging;
 using IF.Steam;
 using IF.URP.RendererFeature.GaussianBlur;
+using InHouseLibrary.ADV.Local;
 using KingKrouch.Utility.Helpers;
 using Steamworks;
 using SvSFix.Controllers;
@@ -149,8 +153,9 @@ namespace SvSFix
                 return new Vector2(4096, 4096);
             }
         }
-        
-        static BlackBarController _controllerComponent;
+
+        private static string path = @"BepInEx\content\svsfix_content";
+        public static AssetBundle blackBarControllerBundle = AssetBundle.LoadFromFile(path);
 
         // Aspect Ratio Config
         public static ConfigEntry<bool> _bOriginalUIAspectRatio; // On: Presents UI aspect ratio at 16:9 screen space, Off: Spanned UI.
@@ -185,6 +190,8 @@ namespace SvSFix
         public static ConfigEntry<int> _iHorizontalResolution;
         public static ConfigEntry<int> _iVerticalResolution;
         
+        public static bool restrictAdvUiTo16x9 = true;
+
         private void InitConfig()
         {
             // Aspect Ratio Config
@@ -277,14 +284,8 @@ namespace SvSFix
             SvSFix._log.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
             // Reads or creates our config file.
             InitConfig();
-            LoadGraphicsSettings(); //TODO: Figure out why this is spitting an error
+            LoadGraphicsSettings(); //TODO: Figure out how to modify the shadow resolution.
             // Creates our custom components, and prints a log statement if it failed or not.
-            //var createdBlackBarActor = CreateBlackBarsActor();
-            //if (createdBlackBarActor) {
-                //_log.LogInfo("Adding BlackBarController Hooks.");
-                //Harmony.CreateAndPatchAll(typeof(BlackBarControllerFunctionality));
-            //}
-            //else { Log.LogError("Couldn't create Pillarbox Actor."); }
             var createdFramelimiter = InitializeFramelimiter();
             if (createdFramelimiter) {
                 _log.LogInfo("Created Framelimiter.");
@@ -313,42 +314,7 @@ namespace SvSFix
             frLimiterComponent.fpsLimit = (double)Screen.currentResolution.refreshRate / _iFrameInterval.Value;
             return true;
         }
-
-        public static bool CreateBlackBarsActor()
-        {
-            // Creates our BlackBarController prefab by hooking into Unity's AssetBundles system.
-            // By default, SvS uses Unity 2021.2.5f1, keeping that in mind in case I need to use AssetBundles again for whatever reason.
-            var path = @"BepInEx\content\svsfix_content";
-            var bundle = AssetBundle.LoadFromFile(path);
-            if (bundle != null)
-            {
-                var names = bundle.GetAllAssetNames();
-                Debug.Log(bundle.GetAllAssetNames());
-                var prefab = bundle.LoadAsset<GameObject>(names[0]);
-                GameObject blackBarController = Instantiate(prefab, new Vector3(0, 0, 0), Quaternion.identity);
-                DontDestroyOnLoad(blackBarController);
-                // Creates the Controller component script manually, and then fixes some of the variables that need references.
-                _controllerComponent = blackBarController.AddComponent<BlackBarController>();
-                _controllerComponent.letterboxTop = (Image)prefab.transform.Find("Letterbox/Top")
-                    .GetComponentInChildren(typeof(Image), true);
-                _controllerComponent.letterboxBottom = (Image)prefab.transform.Find("Letterbox/Bottom")
-                    .GetComponentInChildren(typeof(Image), true);
-                _controllerComponent.pillarboxLeft = (Image)prefab.transform.Find("Pillarbox/Left")
-                    .GetComponentInChildren(typeof(Image), true);
-                _controllerComponent.pillarboxRight = (Image)prefab.transform.Find("Pillarbox/Right")
-                    .GetComponentInChildren(typeof(Image), true);
-                _controllerComponent.opacity = 1.0f;
-                _log.LogInfo("Created BlackBarController Actor.");
-                return true;
-            }
-            else {
-                _log.LogError("Couldn't Spawn BlackBarController Actor.");
-                return false;
-            }
-        }
         
-        
-
         private static void LoadGraphicsSettings()
         {
             // TODO:
@@ -673,7 +639,6 @@ namespace SvSFix
         public class UIPatches
         {
             // TODO:
-            // 1. Adjust fullscreen fade effects (like during cutscenes, GameUiDungeonAreaMove/Canvas/Root/Back, or the load/save game prompt (GameUiSaveList/Root/Filter)) to take up the entire screen rather than a 16:9 portion.
             // 2. Adjust the RectTransform.OffsetMin of the In-Game Key Prompts to take up the horizontal aspect ratio equivalent of 2160p (For some reason, with 32:9, you have to have that set to 8000 instead of 7680, have to investigate)
             // 3. Adjust the RectTransform.AnchoredPosition of the Pause Menu prompts to a 16:9 position in the center of the screen. May have to adjust the vertical position and scale if the aspect ratio is less than 16:9.
             // 4. Adjust the scale of fullscreen UI elements to a 16:9 portion on the screen if the aspect ratio is less than 16:9.
@@ -683,16 +648,19 @@ namespace SvSFix
             // 8. Adjust the AdvInterface elements to fit to a 16:9 aspect ratio portion on-screen. For some reason, it grows bigger the narrower the aspect ratio.
             // 9. Adjust the positions of UI elements in Dungeons and Battles based on if the user wants a spanned or centered UI.
 
-            private const float OriginalAspectRatio = 1.7777778f;
-            private static float _newSizeX = 3840f;
-            private static float _newSizeY = 2160f;
-            public static bool in16x9Menu = false;
-            public static bool inCutscene = false;
-
-            private static AspectRatioFitter GameUiMainMenuStatusScaler;
-            private static AspectRatioFitter GameUiMainMenuDiscScaler;
-            private static AspectRatioFitter GameUiMainMenuMintubuScaler;
-            private static AspectRatioFitter GameUiFullScreenMiniMapScaler;
+            private const  float             OriginalAspectRatio            = 1.7777778f;
+            private static float             _newSizeX                      = 3840f;
+            private static float             _newSizeY                      = 2160f;
+            private static bool              _in16X9Menu                    = false;
+            private static bool              _inCutscene                    = false;
+            private static AspectRatioFitter _gameUiMainMenuStatusScaler; 
+            private static AspectRatioFitter _gameUiMainMenuDiscScaler;
+            private static AspectRatioFitter _gameUiMainMenuMintubuScaler;
+            private static AspectRatioFitter _gameUiFullScreenMiniMapScaler;
+            
+            private static bool              _createdBlackBarActorInWorldMap;
+            private static GameObject        _blackBarActorWorldMap;
+            private static Component         _blackBarActorWorldMapComponent;
 
             [HarmonyPatch(typeof(GameUiMainMenuMintubu), nameof(GameUiMainMenuMintubu.Open), new Type[] { typeof(bool) })]
             [HarmonyPostfix]
@@ -702,14 +670,14 @@ namespace SvSFix
                 // So we are essentially gonana look for an object with the MainMenuTop component, and then check if it belongs to a parent of GameUiMainMenuStatus before creating the aspect ratio fitter component.
                 var menuChirper = FindObjectsOfType<GameUiMainMenuMintubu>();
                 //menuTop[0].transform.parent == FindObjectOfType(GameUiMainMenuStatus);
-                if (GameUiMainMenuMintubuScaler == null)
+                if (_gameUiMainMenuMintubuScaler == null)
                 {
                     _log.LogInfo("Found " + menuChirper[0].name + " possessing a GameUiMainMenuMintubu component.");
                     var transform = menuChirper[0].transform.Find("Canvas/Root");
-                    GameUiMainMenuMintubuScaler = transform.gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
-                    if (GameUiMainMenuMintubuScaler != null) {
-                        GameUiMainMenuMintubuScaler.aspectRatio = OriginalAspectRatio;
-                        GameUiMainMenuMintubuScaler.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                    _gameUiMainMenuMintubuScaler = transform.gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
+                    if (_gameUiMainMenuMintubuScaler != null) {
+                        _gameUiMainMenuMintubuScaler.aspectRatio = OriginalAspectRatio;
+                        _gameUiMainMenuMintubuScaler.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
                     }
                 }
             }
@@ -808,12 +776,12 @@ namespace SvSFix
                             }
                         }
                         else{ _log.LogError("rectTransformKeyAssign returned null."); }
-                        if (GameUiFullScreenMiniMapScaler == null) {
+                        if (_gameUiFullScreenMiniMapScaler == null) {
                             _log.LogInfo("GameUiFullscreenMinimapScaler returned null, creating component.");
-                            GameUiFullScreenMiniMapScaler = transformKeyAssign.gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
-                            if (GameUiFullScreenMiniMapScaler != null) {
-                                GameUiFullScreenMiniMapScaler.aspectRatio = OriginalAspectRatio;
-                                GameUiFullScreenMiniMapScaler.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                            _gameUiFullScreenMiniMapScaler = transformKeyAssign.gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
+                            if (_gameUiFullScreenMiniMapScaler != null) {
+                                _gameUiFullScreenMiniMapScaler.aspectRatio = OriginalAspectRatio;
+                                _gameUiFullScreenMiniMapScaler.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
                             }
                         }
                     }
@@ -842,12 +810,41 @@ namespace SvSFix
                 var transformFrame3 = keyAssign.transform.Find("Canvas/Root/Frame3");
                 var rectTransformFrame3 = transformFrame3.GetComponent<RectTransform>();
                 
-                if (currentAspectRatio > OriginalAspectRatio) {
-                    rectTransformFrame3.offsetMin = new Vector2((3840f / (OriginalAspectRatio / currentAspectRatio)) * -1, rectTransformFrame3.offsetMin.y);
+                var offset16X9 = new Vector2(3840f * -1, rectTransformFrame3.offsetMin.y);
+                var offsetSpanned = new Vector2((3840f / (OriginalAspectRatio / currentAspectRatio)) * -1, rectTransformFrame3.offsetMin.y);
+
+                if (!_in16X9Menu) {
+                    if (currentAspectRatio > OriginalAspectRatio) { rectTransformFrame3.offsetMin = offsetSpanned; }
+                    else if (currentAspectRatio < OriginalAspectRatio) { rectTransformFrame3.offsetMin = offset16X9; } 
                 }
-                else if (currentAspectRatio < OriginalAspectRatio) {
-                    rectTransformFrame3.offsetMin = new Vector2(3840f * -1, rectTransformFrame3.offsetMin.y);
-                }
+                else { rectTransformFrame3.offsetMin = offset16X9; }
+            }
+
+            [HarmonyPatch(typeof(GameUiWorldDungeonEntrance), nameof(GameUiWorldDungeonEntrance.Open), new Type[] { typeof(bool) })]
+            [HarmonyPostfix]
+            public static void FixBlackFadeBackgroundDuringDungeonEntrance(GameUiWorldDungeonEntrance __instance)
+            {
+                var transform = __instance.transform.Find("Canvas/Root/Back");
+                float scale = MathF.Round(SystemCamera3D.GetCamera().aspect / OriginalAspectRatio);
+                transform.localScale = new Vector3(scale, scale, transform.localScale.z); // It's a bit lazy to scale both X and Y, but it should work fine.
+            }
+            
+            [HarmonyPatch(typeof(GameUiSaveList), nameof(GameUiSaveList.Open))]
+            [HarmonyPostfix]
+            public static void FixBlackFadeBackgroundDuringSaves(GameUiWorldDungeonEntrance __instance)
+            {
+                var transform = __instance.transform.Find("Root/Filter");
+                float scale = MathF.Round(SystemCamera3D.GetCamera().aspect / OriginalAspectRatio);
+                transform.localScale = new Vector3(scale, scale, transform.localScale.z); // It's a bit lazy to scale both X and Y, but it should work fine.
+            }
+
+            [HarmonyPatch(typeof(GameUiDungeonAreaMove), "Open", new Type[] { typeof(bool) })]
+            [HarmonyPostfix]
+            public static void FixBlackFadeBackgroundDuringDungeonAreaMove(GameUiDungeonAreaMove __instance) // TODO: Figure out why the safe area has a black background sometimes.
+            {
+                var transform = __instance.transform.Find("Canvas/Root/Back");
+                float scale = MathF.Round(SystemCamera3D.GetCamera().aspect / OriginalAspectRatio);
+                transform.localScale = new Vector3(scale, scale, transform.localScale.z); // It's a bit lazy to scale both X and Y, but it should work fine.
             }
 
             [HarmonyPatch(typeof(GameUiDungeonMemberStatus), nameof(GameUiDungeonMemberStatus.Open))]
@@ -870,9 +867,75 @@ namespace SvSFix
                 else{ _log.LogError("GameUiDungeonMemberStatusTransform returned null."); }
             }
 
-            [HarmonyPatch(typeof(AdvIconCustom), MethodType.Constructor)] // TODO: Find a better hook than a constructor.
+            [HarmonyPatch(typeof(AdvUiIcon), MethodType.Constructor)] // TODO: Need to find a better hook for this as we do want to pillarbox the ADV/VN segments too.
             [HarmonyPostfix]
-            public static void AdvIconCustomAdjust(AdvIconCustom __instance)
+            public static void AdvCreateLetterboxes(AdvUiIcon __instance)
+            {
+                // var blackBarActor = CreateBlackBars(__instance.gameObject); // TODO: Fix component to display properly, for now, we are gonna have to go without.
+            }
+
+            [HarmonyPatch(typeof(GameUiWorldMap), "Awake")]
+            [HarmonyPostfix]
+            public static void WorldMapCreateLetterboxes(GameUiWorldMap __instance)
+            {
+                // For now, zooming into the minimap is going to have to do, at least until I can fix the pillarbox actor.
+                var objectinstance = __instance.gameObject;
+                var objectCanvas = objectinstance.transform.Find("Canvas");
+                var objectScaler = objectCanvas.GetComponent<CanvasScaler>();
+                objectScaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
+                
+                //if (!_createdBlackBarActorInWorldMap) // TODO: Fix component to display properly, for now, we are gonna have to Zoom in on the minimap.
+                //{
+                //_blackBarActorWorldMap = CreateBlackBars(__instance.gameObject);
+                //if (_blackBarActorWorldMap != null)
+                //{
+                //_blackBarActorWorldMapComponent = _blackBarActorWorldMap.GetComponent<BlackBarController>();
+                //if (_blackBarActorWorldMapComponent != null)
+                //{
+                //_createdBlackBarActorInWorldMap = true;
+                //}
+                //}
+                //}
+            }
+            
+            public static GameObject CreateBlackBars(GameObject parent)
+            {
+                // Creates our BlackBarController prefab by hooking into Unity's AssetBundles system.
+                if (blackBarControllerBundle != null)
+                {
+                    var names = blackBarControllerBundle.GetAllAssetNames();
+                    Debug.Log(blackBarControllerBundle.GetAllAssetNames());
+                    var prefab = blackBarControllerBundle.LoadAsset<GameObject>(names[0]);
+                    GameObject blackBarController = Instantiate(prefab, parent.transform, true);
+                    BlackBarController controllerComponent = blackBarController.GetComponent<BlackBarController>();
+                    //DontDestroyOnLoad(blackBarController);
+                    if (controllerComponent == null)
+                    {
+                        // Creates the Controller component script manually, and then fixes some of the variables that need references.
+                        controllerComponent = blackBarController.AddComponent<BlackBarController>();
+                        controllerComponent.letterboxTop = (Image)prefab.transform.Find("Letterbox/Top")
+                            .GetComponentInChildren(typeof(Image), true);
+                        controllerComponent.letterboxBottom = (Image)prefab.transform.Find("Letterbox/Bottom")
+                            .GetComponentInChildren(typeof(Image), true);
+                        controllerComponent.pillarboxLeft = (Image)prefab.transform.Find("Pillarbox/Left")
+                            .GetComponentInChildren(typeof(Image), true);
+                        controllerComponent.pillarboxRight = (Image)prefab.transform.Find("Pillarbox/Right")
+                            .GetComponentInChildren(typeof(Image), true);
+                        controllerComponent.opacity = 1.0f;
+                        _log.LogInfo("Created BlackBarController Actor.");
+                    }
+                    else { _log.LogError("BlackBarController Component was already created. Couldn't Spawn BlackBarController Actor."); return null; }
+                    return blackBarController;
+                }
+                else {
+                    _log.LogError("Couldn't Spawn BlackBarController Actor.");
+                    return null;
+                }
+            }
+
+            [HarmonyPatch(typeof(AdvUiIcon), "Update")]
+            [HarmonyPostfix]
+            public static void AdvIconCustomAdjust(AdvUiIcon __instance) // We are simply gonna hook the original function that AdvIconCustom is based on.
             {
                 var currentAspectRatio = SystemCamera3D.GetCamera().aspect;
                 var transform = __instance.transform.Find("Canvas/Root");
@@ -882,8 +945,15 @@ namespace SvSFix
                     if (rectTransform != null)
                     {
                         // The default is 1.0, but 0.75 is what it needs to be at to be in the proper space in 32:9. 0.5 is half-way
-                        var anchorX = 0.75f;
-                        rectTransform.anchorMax = new Vector2(anchorX, 1);
+                        float AnchorScale()
+                        {
+                            float aspectRatioOffset = OriginalAspectRatio / SystemCamera3D.GetCamera().aspect;
+                            float newAnchorPoint = (1.0f + aspectRatioOffset) / 2;
+        
+                            if (restrictAdvUiTo16x9) { return newAnchorPoint; }
+                            else                { return 1.00f; }
+                        }
+                        rectTransform.anchorMax = new Vector2(AnchorScale(), 1);
                     }
                     else{ _log.LogError("AdvIconCustomRectTransform returned null."); }
                 }
@@ -897,8 +967,8 @@ namespace SvSFix
                 
             }
 
-            [HarmonyPatch(typeof(GameAdvCameraManage), nameof(GameAdvCameraManage.Refresh))]
-            [HarmonyPostfix]
+            //[HarmonyPatch(typeof(GameAdvCameraManage), nameof(GameAdvCameraManage.Refresh))]
+            //[HarmonyPostfix]
             public static void GameAdvCameraAdjust(GameAdvCameraManage __instance) // TODO: Fix broken hook
             {
                 var cameraFront = __instance.GetSubCameraSideFront();
@@ -1096,14 +1166,14 @@ namespace SvSFix
                 // So we are essentially gonana look for an object with the MainMenuTop component, and then check if it belongs to a parent of GameUiMainMenuStatus before creating the aspect ratio fitter component.
                 var menuStatus = FindObjectsOfType<GameUiMainMenuStatus>();
                 //menuTop[0].transform.parent == FindObjectOfType(GameUiMainMenuStatus);
-                if (GameUiMainMenuStatusScaler == null)
+                if (_gameUiMainMenuStatusScaler == null)
                 {
                     _log.LogInfo("Found " + menuStatus[0].name + " possessing a GameUiMainMenuStatus component.");
                     var transform = menuStatus[0].transform.Find("Canvas/Root");
-                    GameUiMainMenuStatusScaler = transform.gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
-                    if (GameUiMainMenuStatusScaler != null) {
-                        GameUiMainMenuStatusScaler.aspectRatio = OriginalAspectRatio;
-                        GameUiMainMenuStatusScaler.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                    _gameUiMainMenuStatusScaler = transform.gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
+                    if (_gameUiMainMenuStatusScaler != null) {
+                        _gameUiMainMenuStatusScaler.aspectRatio = OriginalAspectRatio;
+                        _gameUiMainMenuStatusScaler.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
                     }
                 }
             }
@@ -1121,28 +1191,18 @@ namespace SvSFix
             {
                 // So we are essentially gonana look for an object with the MainMenuTop component, and then check if it belongs to a parent of GameUiMainMenuStatus before creating the aspect ratio fitter component.
                 var menuDisc = FindObjectsOfType<GameUiMainMenuDisc>();
-                if (GameUiMainMenuDiscScaler == null)
+                if (_gameUiMainMenuDiscScaler == null)
                 {
                     _log.LogInfo("Found " + menuDisc[0].name + " possessing a GameUiMainMenuDisc component.");
                     var transform = menuDisc[0].transform.Find("Canvas/Root");
-                    GameUiMainMenuDiscScaler = transform.gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
-                    if (GameUiMainMenuDiscScaler != null) {
-                        GameUiMainMenuDiscScaler.aspectRatio = OriginalAspectRatio;
-                        GameUiMainMenuDiscScaler.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                    _gameUiMainMenuDiscScaler = transform.gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
+                    if (_gameUiMainMenuDiscScaler != null) {
+                        _gameUiMainMenuDiscScaler.aspectRatio = OriginalAspectRatio;
+                        _gameUiMainMenuDiscScaler.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
                     }
                 }
             }
 
-            [HarmonyPatch(typeof(GameUiDungeonAreaMove), nameof(GameUiDungeonAreaMove.Open), new Type[] { typeof(int) })]
-            [HarmonyPostfix]
-            public static void GameUiDungeonAreaMoveOpen()
-            {
-                _log.LogInfo("Opened Dungeon Area Move Menu.");
-                var dungeonAreaMove = FindObjectsOfType<GameUiDungeonAreaMove>();
-                var uiOverlay = dungeonAreaMove[0].gameObject.transform.Find("Canvas/Root/Back");
-                uiOverlay.localScale = new Vector3(SystemCamera3D.GetCamera().pixelWidth, SystemCamera3D.GetCamera().pixelHeight, 1.00f);
-            }
-            
             [HarmonyPatch(typeof(GameUiDungeonAreaMove), nameof(GameUiDungeonAreaMove.Close))]
             [HarmonyPostfix]
             public static void GameUiDungeonAreaMoveClose()

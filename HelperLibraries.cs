@@ -504,7 +504,7 @@ public class BlackBarController : MonoBehaviour
     public Image pillarboxRight;
     public Image letterboxTop;
     public Image letterboxBottom;
-    public float originalAspectRatio = 1.777777777777778f;
+    public float originalAspectRatio = 1.7777778f;
     [Range(0.0f, 1.0f)]
     public float opacity = 1.0f;
     public float fadeSpeed = 2.5f;
