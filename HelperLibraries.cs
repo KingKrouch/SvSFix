@@ -510,10 +510,11 @@ public class BlackBarController : MonoBehaviour
     public float fadeSpeed = 2.5f;
     void SetupCoordinates()
     {
-        float resX = Screen.width; // You can grab a camera and use camera.pixelWidth during editor builds, but Screen calls should be just fine.
-        float resY = Screen.height;
-        if (enableDebug) { Debug.Log( Screen.width + "x" + Screen.height); }
-        float currentAspectRatio = resX / resY;
+    
+        float resX = SystemCamera3D.GetCamera().pixelWidth; // You can grab a camera and use camera.pixelWidth during editor builds, but Screen calls should be just fine.
+        float resY = SystemCamera3D.GetCamera().pixelHeight;
+        if (enableDebug) { Debug.Log( resX + "x" + resY); }
+        float currentAspectRatio = SystemCamera3D.GetCamera().aspect;
         float aspectRatioOffset = originalAspectRatio / currentAspectRatio;
 
         // Set up the Vertical offsets.
