@@ -49,4 +49,4 @@ SOFTWARE.**
 
 **[See the MIT License for more details.](https://github.com/KingKrouch/SvSFix/blob/main/LICENSE)**
 
-_**DISCLAIMER: Licensed under an MIT license in case a certain entity wants to implement my changes officially (hit me up, and I'll sort something out.**_ 😉 _**). I know that GPL Licensing presents problems with this kind of stuff. Since this technically modifies game code by reimplementing certain functions, this license may or may not be valid for other use scenarios. It's not my intention to stub anyone legally speaking.**_
+_**DISCLAIMER: Licensed under an MIT license in case a certain entity wants to implement my changes officially (hit me up, and I'll sort something out.**_ 😉 _**). I know that GPL Licensing presents problems with this kind of stuff. Since this technically modifies game code by reimplementing certain functions, this license may or may not be valid for other use scenarios (The binaries in the lib folder and the Mono runtimes ARE NOT MIT licensed). It's not my intention to stub anyone legally speaking.**_
