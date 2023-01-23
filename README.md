@@ -1,5 +1,6 @@
 # SvSFix
-Community Improvement Patch for Neptunia Sisters vs Sisters
+[![Github All Releases](https://img.shields.io/github/downloads/KingKrouch/SvSFix/total.svg)]()
+<br>Community Improvement Patch for Neptunia Sisters vs Sisters
 
 ## Features
 - Fixes for stuttering gameplay logic _(Particularly Player and Enemy movement functions that use FixedUpdate incorrectly)._
@@ -12,7 +13,7 @@ Community Improvement Patch for Neptunia Sisters vs Sisters
 
 
 ## Installation
-- Grab the latest release of SvSFix from [here](https://github.com/KingKrouch/SvSFix/releases).
+- Grab the latest release of SvSFix from [here](https://github.com/KingKrouch/SvSFix/releases) alongside with the mono runtimes for the game.
 - Extract the .zip archive's contents into the game directory.<br />(e.g. "**steamapps\common\Neptunia Sisters VS Sisters**" for Steam).
 - To adjust any settings open the config file located in **\BepInEx\Config\SvSFix.cfg**
 
