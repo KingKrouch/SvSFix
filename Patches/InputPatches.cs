@@ -13,7 +13,7 @@ using Game.UI.Local;
 using IF.Steam;
 using Steamworks;
 // Mod Stuff
-using KingKrouch.Utility.Helpers;
+using SvSFix.Tools;
 
 namespace SvSFix
 {

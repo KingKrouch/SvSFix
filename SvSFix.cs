@@ -8,7 +8,7 @@ using System;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 // Mod Stuff
-using KingKrouch.Utility.Helpers;
+using SvSFix.Tools;
 
 namespace SvSFix
 {
@@ -234,7 +234,7 @@ namespace SvSFix
                 }
             };
             DontDestroyOnLoad(frObject);
-            var frLimiterComponent = frObject.AddComponent<FramerateLimiter>();
+            var frLimiterComponent = frObject.AddComponent<FramerateLimitManager>();
             frLimiterComponent.fpsLimit = (double)Screen.currentResolution.refreshRate / _iFrameInterval.Value;
             return true;
         }

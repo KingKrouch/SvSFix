@@ -25,7 +25,7 @@ using IF.GameMain.Splash.Config;
 using IF.URP.RendererFeature.GaussianBlur;
 using InHouseLibrary.ADV.Local;
 // Mod Stuff
-using KingKrouch.Utility.Helpers;
+using SvSFix.Tools;
 
 namespace SvSFix;
 
