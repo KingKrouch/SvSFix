@@ -2,7 +2,11 @@
 using HarmonyLib;
 // Unity and System Stuff
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using UnityEngine;
+using UnityEngine.U2D;
 using UnityEngine.InputSystem.DualShock;
 using UnityEngine.InputSystem.Switch;
 using UnityEngine.InputSystem.XInput;
@@ -79,13 +83,76 @@ namespace SvSFix
 
             public static GameObject advInputMgrObject;
             public static InputManager advInputMgrComponent;
+            
+            public static SpriteAtlas iconInputPS4;
+            public static SpriteAtlas iconInputPS5;
+            
+            private static void SearchForAB()
+            {
+                string spriteAtlasNameToFind = "icon_input_PC";
+                // Get all loaded AssetBundles
+                var loadedAssetBundles = AssetBundle.GetAllLoadedAssetBundles();
+
+                foreach (var loadedBundle in loadedAssetBundles)
+                {
+                    // Load all asset names in the current AssetBundle
+                    var assetNames = loadedBundle.GetAllAssetNames();
+
+                    // Check if the SpriteAtlas with the desired name is present in this AssetBundle
+                    foreach (var assetName in assetNames)
+                    {
+                        if (assetName.EndsWith(spriteAtlasNameToFind, System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            Debug.Log("Found SpriteAtlas " + spriteAtlasNameToFind + " in AssetBundle " + loadedBundle.name);
+
+                            // You can perform additional actions here, such as storing the reference to the AssetBundle
+                            // or loading the SpriteAtlas itself if needed.
+                        }
+                    }
+                }
+            }
+            
+            private static void LoadSpriteAtlas()
+            {
+                // Get all loaded AssetBundles
+                var loadedAssetBundles = AssetBundle.GetAllLoadedAssetBundles();
+                // Define the name of the AssetBundle you want to access
+                const string targetAssetBundleName = "interfaceglobal_assets_all.bundle";
+                // Find the target AssetBundle by its name
+                var targetAssetBundle = loadedAssetBundles.FirstOrDefault(assetBundle => assetBundle.name == targetAssetBundleName);
+                // Check if the target AssetBundle was found
+                if (targetAssetBundle != null) {
+                    // Load assets from the target AssetBundle
+                    iconInputPS4 = targetAssetBundle.LoadAsset<SpriteAtlas>("icon_input_PS4");
+                    iconInputPS5 = targetAssetBundle.LoadAsset<SpriteAtlas>("icon_input_PS5");
+                    // Now you can use iconInputPS4 and iconInputPS5 as needed
+                }
+                else {
+                    // Try loading it into memory manually.
+                    var assetBundlePath = Path.Combine(Application.streamingAssetsPath, "aa", "StandaloneWindows64", targetAssetBundleName);
+                    var targetAssetBundleNew = AssetBundle.LoadFromFile(assetBundlePath);
+                    if (targetAssetBundleNew != null) {
+                        iconInputPS4 = targetAssetBundleNew.LoadAsset<SpriteAtlas>("icon_input_PS4");
+                        iconInputPS5 = targetAssetBundleNew.LoadAsset<SpriteAtlas>("icon_input_PS5");
+                    }
+                    else
+                    {
+                        // Try to manually load them.
+                        iconInputPS4 = Resources.Load<SpriteAtlas>($"Assets/Project/AppData/Game/Interface/Icon/icon_input_PS4");
+                        iconInputPS5 = Resources.Load<SpriteAtlas>($"Assets/Project/AppData/Game/Interface/Icon/icon_input_PS5");
+                        if (iconInputPS4 == null || iconInputPS5 == null) {
+                            Debug.LogError("Failed to load AssetBundle: " + assetBundlePath);
+                        }
+                    }
+                }
+            }
 
             //private static AssetBundle spriteAssetBundle = AssetBundle.LoadFromFile(Path.Combine(Application.streamingAssetsPath, "aa", "StandaloneWindows64", "interfaceglobal_assets_all.bundle"));
             //public static SpriteAtlas iconInputPS4 = spriteAssetBundle.LoadAsset<SpriteAtlas>("Assets/Project/AppData/Game/Interface/Icon/icon_input_PS4");
             //public static SpriteAtlas iconInputPS5 = spriteAssetBundle.LoadAsset<SpriteAtlas>("Assets/Project/AppData/Game/Interface/Icon/icon_input_PS5");
 
-            //public static SpriteAtlas iconInputPS4 = Resources.Load("Assets/Project/AppData/Game/Interface/Icon/icon_input_PS4") as SpriteAtlas;
-            //public static SpriteAtlas iconInputPS5 = Resources.Load("Assets/Project/AppData/Game/Interface/Icon/icon_input_PS5") as SpriteAtlas;
+            //public static SpriteAtlas iconInputPS4 = Resources.Load($"Assets/Project/AppData/Game/Interface/Icon/icon_input_PS4") as SpriteAtlas;
+            //public static SpriteAtlas iconInputPS5 = Resources.Load($"Assets/Project/AppData/Game/Interface/Icon/icon_input_PS5") as SpriteAtlas;
 
             // So both GameInput and World Manager seemingly have stuff that toggles the mouse cursor.
             [HarmonyPatch(typeof(GameInput), nameof(GameInput.RenewMouseCursorVisible))]
@@ -99,21 +166,13 @@ namespace SvSFix
             [HarmonyPostfix]
             public static void CustomCurrentDevice(ref GameInput.EnumDevice __result)
             {
-                switch (_confInputType)
+                __result = _confInputType switch
                 {
-                    case EInputType.Automatic:
-                        __result = SingletonMonoBehaviour<GameInput>.Instance.Device;
-                        break;
-                    case EInputType.KBM:
-                        __result = GameInput.EnumDevice.kKeyboard;
-                        break;
-                    case EInputType.Controller:
-                        __result = GameInput.EnumDevice.kGamepad;
-                        break;
-                    default:
-                        __result = SingletonMonoBehaviour<GameInput>.Instance.Device;
-                        break;
-                }
+                    EInputType.Automatic => SingletonMonoBehaviour<GameInput>.Instance.Device,
+                    EInputType.KBM => GameInput.EnumDevice.kKeyboard,
+                    EInputType.Controller => GameInput.EnumDevice.kGamepad,
+                    _ => SingletonMonoBehaviour<GameInput>.Instance.Device
+                };
             }
 
             // GameUiBattleCommandMenu.InputKey probably has what we are looking for regarding custom controller prompt injection.
@@ -157,203 +216,166 @@ namespace SvSFix
                     if (advInputMgrComponent.steamInputInitialized && !_bDisableSteamInput.Value)
                     {
                         if (SteamInput.GetConnectedControllers(advInputMgrComponent.inputHandles) <= 0) return original;
-                        switch (icon)
+                        result = icon switch
                         {
-                            case EnumIcon.PAD_ENTER:
-                                result = Glyphs.GlyphA;
+                            EnumIcon.PAD_ENTER      => Glyphs.GlyphA,
+                            EnumIcon.PAD_BACK       => Glyphs.GlyphB,
+                            EnumIcon.PAD_BUTTON_L   => Glyphs.GlyphX,
+                            EnumIcon.PAD_BUTTON_U   => Glyphs.GlyphY,
+                            EnumIcon.PAD_BUTTON_R   => Glyphs.GlyphB,
+                            EnumIcon.PAD_BUTTON_D   => Glyphs.GlyphA,
+                            EnumIcon.PAD_MOVE       => Glyphs.GlyphLs,
+                            EnumIcon.PAD_MOVE_ALL   => Glyphs.GlyphLs,
+                            EnumIcon.PAD_MOVE_L     => Glyphs.GlyphDPadRight,
+                            EnumIcon.PAD_MOVE_U     => Glyphs.GlyphDPadUp,
+                            EnumIcon.PAD_MOVE_R     => Glyphs.GlyphDPadDown,
+                            EnumIcon.PAD_MOVE_D     => Glyphs.GlyphDPadLeft,
+                            EnumIcon.PAD_MOVE_LR    => Glyphs.GlyphDPadLeftRightPresent,
+                            EnumIcon.PAD_MOVE_UD    => Glyphs.GlyphDPadUpDownPresent,
+                            EnumIcon.PAD_L1         => Glyphs.GlyphLb,
+                            EnumIcon.PAD_R1         => Glyphs.GlyphRb,
+                            EnumIcon.PAD_L2         => Glyphs.GlyphLt,
+                            EnumIcon.PAD_R2         => Glyphs.GlyphRt,
+                            EnumIcon.PAD_L3         => Glyphs.GlyphLsClick,
+                            EnumIcon.PAD_R3         => Glyphs.GlyphRsClick,
+                            EnumIcon.PAD_L_STICK    => Glyphs.GlyphLs,
+                            EnumIcon.PAD_L_STICK_L  => Glyphs.GlyphLsLeft,
+                            EnumIcon.PAD_L_STICK_U  => Glyphs.GlyphLsUp,
+                            EnumIcon.PAD_L_STICK_R  => Glyphs.GlyphLsRight,
+                            EnumIcon.PAD_L_STICK_D  => Glyphs.GlyphLsDown,
+                            EnumIcon.PAD_L_STICK_LR => Glyphs.GlyphLsLeftRightPresent,
+                            EnumIcon.PAD_L_STICK_UD => Glyphs.GlyphLsUpDownPresent,
+                            EnumIcon.PAD_R_STICK    => Glyphs.GlyphRs,
+                            EnumIcon.PAD_R_STICK_L  => Glyphs.GlyphRsLeft,
+                            EnumIcon.PAD_R_STICK_U  => Glyphs.GlyphRsUp,
+                            EnumIcon.PAD_R_STICK_R  => Glyphs.GlyphRsRight,
+                            EnumIcon.PAD_R_STICK_D  => Glyphs.GlyphRsDown,
+                            EnumIcon.PAD_R_STICK_LR => Glyphs.GlyphRsLeftRightPresent,
+                            EnumIcon.PAD_R_STICK_UD => Glyphs.GlyphLsUpDownPresent,
+                            EnumIcon.PAD_CREATE     => original,
+                            EnumIcon.PAD_OPTIONS    => Glyphs.GlyphStart,
+                            EnumIcon.PAD_TOUCH      => Glyphs.GlyphBack,
+                            EnumIcon.PAD_SELECT     => Glyphs.GlyphBack,
+                            EnumIcon.PAD_START      => Glyphs.GlyphStart,
+                            _ => original
+                        };
+                    }
+                    else {
+                        if (UnityEngine.InputSystem.Gamepad.all[0].device == null) return result;
+                        if (iconInputPS5 == null || iconInputPS4 == null) {
+                            LoadSpriteAtlas();
+                        }
+                        switch (UnityEngine.InputSystem.Gamepad.all[0].device)
+                        {
+                            case DualSenseGamepadHID: // TODO: Fix broken null references, so there's no errors with loading sprites.
+                                if (iconInputPS5 != null)
+                                {
+                                    result = icon switch
+                                    {
+                                        EnumIcon.PAD_ENTER      => iconInputPS5.GetSprite("button_batu"),
+                                        EnumIcon.PAD_BACK       => iconInputPS5.GetSprite("button_maru"),
+                                        EnumIcon.PAD_BUTTON_L   => iconInputPS5.GetSprite("button_sikaku"),
+                                        EnumIcon.PAD_BUTTON_U   => iconInputPS5.GetSprite("button_sankaku"),
+                                        EnumIcon.PAD_BUTTON_R   => iconInputPS5.GetSprite("button_maru"),
+                                        EnumIcon.PAD_BUTTON_D   => iconInputPS5.GetSprite("button_batu"),
+                                        EnumIcon.PAD_MOVE       => original,
+                                        EnumIcon.PAD_MOVE_ALL   => original,
+                                        EnumIcon.PAD_MOVE_L     => original,
+                                        EnumIcon.PAD_MOVE_U     => original,
+                                        EnumIcon.PAD_MOVE_R     => original,
+                                        EnumIcon.PAD_MOVE_D     => original,
+                                        EnumIcon.PAD_MOVE_LR    => original,
+                                        EnumIcon.PAD_MOVE_UD    => original,
+                                        EnumIcon.PAD_L1         => iconInputPS5.GetSprite("L1"),
+                                        EnumIcon.PAD_R1         => iconInputPS5.GetSprite("R1"),
+                                        EnumIcon.PAD_L2         => iconInputPS5.GetSprite("L2"),
+                                        EnumIcon.PAD_R2         => iconInputPS5.GetSprite("R2"),
+                                        EnumIcon.PAD_L3         => iconInputPS5.GetSprite("L3"),
+                                        EnumIcon.PAD_R3         => iconInputPS5.GetSprite("R3"),
+                                        EnumIcon.PAD_L_STICK    => original,
+                                        EnumIcon.PAD_L_STICK_L  => original,
+                                        EnumIcon.PAD_L_STICK_U  => original,
+                                        EnumIcon.PAD_L_STICK_R  => original,
+                                        EnumIcon.PAD_L_STICK_D  => original,
+                                        EnumIcon.PAD_L_STICK_LR => original,
+                                        EnumIcon.PAD_L_STICK_UD => original,
+                                        EnumIcon.PAD_R_STICK    => original,
+                                        EnumIcon.PAD_R_STICK_L  => original,
+                                        EnumIcon.PAD_R_STICK_U  => original,
+                                        EnumIcon.PAD_R_STICK_R  => original,
+                                        EnumIcon.PAD_R_STICK_D  => original,
+                                        EnumIcon.PAD_R_STICK_LR => original,
+                                        EnumIcon.PAD_R_STICK_UD => original,
+                                        EnumIcon.PAD_CREATE     => iconInputPS5.GetSprite("create"),
+                                        EnumIcon.PAD_OPTIONS    => iconInputPS5.GetSprite("options"),
+                                        EnumIcon.PAD_TOUCH      => iconInputPS5.GetSprite("touch"),
+                                        EnumIcon.PAD_SELECT     => iconInputPS5.GetSprite("touch"),
+                                        EnumIcon.PAD_START      => iconInputPS5.GetSprite("start"),
+                                        _ => original
+                                    };
+                                }
+                                else { result = original; }
                                 break;
-                            case EnumIcon.PAD_BACK:
-                                result = Glyphs.GlyphB;
-                                break;
-                            case EnumIcon.PAD_BUTTON_L:
-                                result = Glyphs.GlyphX;
-                                break; // Square
-                            case EnumIcon.PAD_BUTTON_U:
-                                result = Glyphs.GlyphY;
-                                break; // Triangle
-                            case EnumIcon.PAD_BUTTON_R:
-                                result = Glyphs.GlyphB;
-                                break; // Circle
-                            case EnumIcon.PAD_BUTTON_D:
-                                result = Glyphs.GlyphA;
-                                break; // Cross
-                            case EnumIcon.PAD_MOVE:
-                                result = Glyphs.GlyphLs;
-                                break;
-                            case EnumIcon.PAD_MOVE_ALL:
-                                result = Glyphs.GlyphLs;
-                                break;
-                            case EnumIcon.PAD_MOVE_L:
-                                result = Glyphs.GlyphDPadRight;
-                                break; // L/U/R/D for some reason is mixed up. Here's hoping the analog stick and D-Pad directions aren't as much of a cluster fuck.
-                            case EnumIcon.PAD_MOVE_U:
-                                result = Glyphs.GlyphDPadUp;
-                                break; // Like seriously, what was the person who coded this smoking? I thought pot was illegal in Japan, maybe paint thinner or computer duster? Unless something's not translated and just good-ole "Engrish" at play.
-                            case EnumIcon.PAD_MOVE_R:
-                                result = Glyphs.GlyphDPadDown;
-                                break;
-                            case EnumIcon.PAD_MOVE_D:
-                                result = Glyphs.GlyphDPadLeft;
-                                break;
-                            case EnumIcon.PAD_MOVE_LR:
-                                result = Glyphs.GlyphDPadLeftRightPresent;
-                                break; // We need to look into cycling between left/right
-                            case EnumIcon.PAD_MOVE_UD:
-                                result = Glyphs.GlyphDPadUpDownPresent;
-                                break; // We need to look into cycling between up/down
-                            case EnumIcon.PAD_L1:
-                                result = Glyphs.GlyphLb;
-                                break;
-                            case EnumIcon.PAD_R1:
-                                result = Glyphs.GlyphRb;
-                                break;
-                            case EnumIcon.PAD_L2:
-                                result = Glyphs.GlyphLt;
-                                break;
-                            case EnumIcon.PAD_R2:
-                                result = Glyphs.GlyphRt;
-                                break;
-                            case EnumIcon.PAD_L3:
-                                result = Glyphs.GlyphLsClick;
-                                break;
-                            case EnumIcon.PAD_R3:
-                                result = Glyphs.GlyphRsClick;
-                                break;
-                            case EnumIcon.PAD_L_STICK:
-                                result = Glyphs.GlyphLs;
-                                break;
-                            case EnumIcon.PAD_L_STICK_L:
-                                result = Glyphs.GlyphLsLeft;
-                                break;
-                            case EnumIcon.PAD_L_STICK_U:
-                                result = Glyphs.GlyphLsUp;
-                                break;
-                            case EnumIcon.PAD_L_STICK_R:
-                                result = Glyphs.GlyphLsRight;
-                                break;
-                            case EnumIcon.PAD_L_STICK_D:
-                                result = Glyphs.GlyphLsDown;
-                                break;
-                            case EnumIcon.PAD_L_STICK_LR:
-                                result = Glyphs.GlyphLsLeftRightPresent;
-                                break; // We need to look into cycling between left/right
-                            case EnumIcon.PAD_L_STICK_UD:
-                                result = Glyphs.GlyphLsUpDownPresent;
-                                break; // We need to look into cycling between up/down
-                            case EnumIcon.PAD_R_STICK:
-                                result = Glyphs.GlyphRs;
-                                break;
-                            case EnumIcon.PAD_R_STICK_L:
-                                result = Glyphs.GlyphRsLeft;
-                                break;
-                            case EnumIcon.PAD_R_STICK_U:
-                                result = Glyphs.GlyphRsUp;
-                                break;
-                            case EnumIcon.PAD_R_STICK_R:
-                                result = Glyphs.GlyphRsRight;
-                                break;
-                            case EnumIcon.PAD_R_STICK_D:
-                                result = Glyphs.GlyphRsDown;
-                                break;
-                            case EnumIcon.PAD_R_STICK_LR:
-                                result = Glyphs.GlyphRsLeftRightPresent;
-                                break; // We need to look into cycling between left/right
-                            case EnumIcon.PAD_R_STICK_UD:
-                                result = Glyphs.GlyphLsUpDownPresent;
-                                break; // We need to look into cycling between up/down
-                            case EnumIcon.PAD_CREATE:
+                            case DualShock3GamepadHID:
                                 result = original;
                                 break;
-                            case EnumIcon.PAD_OPTIONS:
-                                result = Glyphs.GlyphStart;
+                            case DualShock4GamepadHID:
+                                if (iconInputPS4 != null) {
+                                    result = icon switch {
+                                        EnumIcon.PAD_ENTER      => iconInputPS4.GetSprite("button_batu"),
+                                        EnumIcon.PAD_BACK       => iconInputPS4.GetSprite("button_maru"),
+                                        EnumIcon.PAD_BUTTON_L   => iconInputPS4.GetSprite("button_sikaku"),
+                                        EnumIcon.PAD_BUTTON_U   => iconInputPS4.GetSprite("button_sankaku"),
+                                        EnumIcon.PAD_BUTTON_R   => iconInputPS4.GetSprite("button_maru"),
+                                        EnumIcon.PAD_BUTTON_D   => iconInputPS4.GetSprite("button_batu"),
+                                        EnumIcon.PAD_MOVE       => original,
+                                        EnumIcon.PAD_MOVE_ALL   => original,
+                                        EnumIcon.PAD_MOVE_L     => original,
+                                        EnumIcon.PAD_MOVE_U     => original,
+                                        EnumIcon.PAD_MOVE_R     => original,
+                                        EnumIcon.PAD_MOVE_D     => original,
+                                        EnumIcon.PAD_MOVE_LR    => original,
+                                        EnumIcon.PAD_MOVE_UD    => original,
+                                        EnumIcon.PAD_L1         => iconInputPS4.GetSprite("L1"),
+                                        EnumIcon.PAD_R1         => iconInputPS4.GetSprite("R1"),
+                                        EnumIcon.PAD_L2         => iconInputPS4.GetSprite("L2"),
+                                        EnumIcon.PAD_R2         => iconInputPS4.GetSprite("R2"),
+                                        EnumIcon.PAD_L3         => iconInputPS4.GetSprite("L3"),
+                                        EnumIcon.PAD_R3         => iconInputPS4.GetSprite("R3"),
+                                        EnumIcon.PAD_L_STICK    => original,
+                                        EnumIcon.PAD_L_STICK_L  => original,
+                                        EnumIcon.PAD_L_STICK_U  => original,
+                                        EnumIcon.PAD_L_STICK_R  => original,
+                                        EnumIcon.PAD_L_STICK_D  => original,
+                                        EnumIcon.PAD_L_STICK_LR => original,
+                                        EnumIcon.PAD_L_STICK_UD => original,
+                                        EnumIcon.PAD_R_STICK    => original,
+                                        EnumIcon.PAD_R_STICK_L  => original,
+                                        EnumIcon.PAD_R_STICK_U  => original,
+                                        EnumIcon.PAD_R_STICK_R  => original,
+                                        EnumIcon.PAD_R_STICK_D  => original,
+                                        EnumIcon.PAD_R_STICK_LR => original,
+                                        EnumIcon.PAD_R_STICK_UD => original,
+                                        EnumIcon.PAD_CREATE     => iconInputPS4.GetSprite("share"), // The big difference is the use of "share" instead of "create"
+                                        EnumIcon.PAD_OPTIONS    => iconInputPS4.GetSprite("options"),
+                                        EnumIcon.PAD_TOUCH      => iconInputPS4.GetSprite("touch"),
+                                        EnumIcon.PAD_SELECT     => iconInputPS4.GetSprite("touch"),
+                                        EnumIcon.PAD_START      => iconInputPS4.GetSprite("start"),
+                                        _ => original
+                                    };
+                                }
+                                else { result = original; }
                                 break;
-                            case EnumIcon.PAD_TOUCH:
-                                result = Glyphs.GlyphBack;
+                            case SwitchProControllerHID:
+                                result = original;
                                 break;
-                            case EnumIcon.PAD_SELECT:
-                                result = Glyphs.GlyphBack;
-                                break;
-                            case EnumIcon.PAD_START:
-                                result = Glyphs.GlyphStart;
+                            case XInputControllerWindows:
+                                // Change Nothing.
+                                result = original;
                                 break;
                             default:
                                 result = original;
                                 break;
-                        }
-                    }
-                    else
-                    {
-                        if (UnityEngine.InputSystem.Gamepad.all[0].device != null)
-                        {
-                            switch (UnityEngine.InputSystem.Gamepad.all[0].device)
-                            {
-                                case DualSenseGamepadHID: // TODO: Fix broken null references, so there's no errors with loading sprites.
-                                    //if (iconInputPS5 != null)
-                                    //{
-                                    //switch (icon) {
-                                    //case EnumIcon.PAD_ENTER:      result = iconInputPS5.GetSprite("button_batu");    break;
-                                    //case EnumIcon.PAD_BACK:       result = iconInputPS5.GetSprite("button_maru");    break;
-                                    //case EnumIcon.PAD_BUTTON_L:   result = iconInputPS5.GetSprite("button_sikaku");  break; // Square
-                                    //case EnumIcon.PAD_BUTTON_U:   result = iconInputPS5.GetSprite("button_sankaku"); break; // Triangle
-                                    //case EnumIcon.PAD_BUTTON_R:   result = iconInputPS5.GetSprite("button_maru");    break; // Circle
-                                    //case EnumIcon.PAD_BUTTON_D:   result = iconInputPS5.GetSprite("button_batu");    break; // Cross
-                                    //case EnumIcon.PAD_MOVE:       result = original;                                      break;
-                                    //case EnumIcon.PAD_MOVE_ALL:   result = original;                                      break;
-                                    //case EnumIcon.PAD_MOVE_L:     result = original;                                      break; // L/U/R/D for some reason is mixed up.
-                                    //case EnumIcon.PAD_MOVE_U:     result = original;                                      break; // Seriously, not gonna repeat what I said earlier like a broken record.
-                                    //case EnumIcon.PAD_MOVE_R:     result = original;                                      break;
-                                    //case EnumIcon.PAD_MOVE_D:     result = original;                                      break;
-                                    //case EnumIcon.PAD_MOVE_LR:    result = original;                                      break;
-                                    //case EnumIcon.PAD_MOVE_UD:    result = original;                                      break;
-                                    //case EnumIcon.PAD_L1:         result = iconInputPS5.GetSprite("L1");             break;
-                                    //case EnumIcon.PAD_R1:         result = iconInputPS5.GetSprite("R1");             break;
-                                    //case EnumIcon.PAD_L2:         result = iconInputPS5.GetSprite("L2");             break;
-                                    //case EnumIcon.PAD_R2:         result = iconInputPS5.GetSprite("R2");             break;
-                                    //case EnumIcon.PAD_L3:         result = iconInputPS5.GetSprite("L3");             break;
-                                    //case EnumIcon.PAD_R3:         result = iconInputPS5.GetSprite("R3");             break;
-                                    //case EnumIcon.PAD_L_STICK:    result = original;                                      break;
-                                    //case EnumIcon.PAD_L_STICK_L:  result = original;                                      break;
-                                    //case EnumIcon.PAD_L_STICK_U:  result = original;                                      break;
-                                    //case EnumIcon.PAD_L_STICK_R:  result = original;                                      break;
-                                    //case EnumIcon.PAD_L_STICK_D:  result = original;                                      break;
-                                    //case EnumIcon.PAD_L_STICK_LR: result = original;                                      break;
-                                    //case EnumIcon.PAD_L_STICK_UD: result = original;                                      break;
-                                    //case EnumIcon.PAD_R_STICK:    result = original;                                      break;
-                                    //case EnumIcon.PAD_R_STICK_L:  result = original;                                      break;
-                                    //case EnumIcon.PAD_R_STICK_U:  result = original;                                      break;
-                                    //case EnumIcon.PAD_R_STICK_R:  result = original;                                      break;
-                                    //case EnumIcon.PAD_R_STICK_D:  result = original;                                      break;
-                                    //case EnumIcon.PAD_R_STICK_LR: result = original;                                      break;
-                                    //case EnumIcon.PAD_R_STICK_UD: result = original;                                      break;
-                                    //case EnumIcon.PAD_CREATE:     result = iconInputPS5.GetSprite("create");         break;
-                                    //case EnumIcon.PAD_OPTIONS:    result = iconInputPS5.GetSprite("options");        break;
-                                    //case EnumIcon.PAD_TOUCH:      result = iconInputPS5.GetSprite("touch");          break;
-                                    //case EnumIcon.PAD_SELECT:     result = iconInputPS5.GetSprite("touch");          break;
-                                    //case EnumIcon.PAD_START:      result = iconInputPS5.GetSprite("start");          break;
-                                    //default:                      result = original;                                      break;
-                                    //}
-                                    //}
-                                    //else {
-                                    //result = original;
-                                    //}
-                                    //break;
-                                case DualShock3GamepadHID:
-                                    result = original;
-                                    break;
-                                case DualShock4GamepadHID:
-                                    result = original;
-                                    break;
-                                case SwitchProControllerHID:
-                                    result = original;
-                                    break;
-                                case XInputControllerWindows:
-                                    // Change Nothing.
-                                    result = original;
-                                    break;
-                                default:
-                                    result = original;
-                                    break;
-                            }
                         }
                     }
                 }
