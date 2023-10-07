@@ -15,6 +15,9 @@ public class BlackBarController : MonoBehaviour
     [Range(0.0f, 1.0f)]
     public float opacity = 1.0f;
     public float fadeSpeed = 2.5f;
+    // Screen Resolution Check Shenanigans (So we don't have redundant crap running per-tick)
+    private Vector2 previousResolution;
+
     void SetupCoordinates()
     {
         float resX = (float)mainCamera.pixelWidth;
@@ -93,6 +96,7 @@ public class BlackBarController : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        previousResolution = new Vector2(Screen.width, Screen.height);
         Setup();
     }
     
@@ -105,6 +109,13 @@ public class BlackBarController : MonoBehaviour
         //if (Input.GetKeyDown(KeyCode.DownArrow)) {
             //StartCoroutine(FadeOutBlackBars());
         //}
+        // Check if the resolution has changed.
+        if (Screen.width == (int)previousResolution.x && Screen.height == (int)previousResolution.y) return;
+        // Resolution has changed; perform your actions here.
+        Debug.Log("Resolution changed to " + Screen.width + "x" + Screen.height);
         Setup();
+        // Update the previous resolution to the current resolution.
+        previousResolution.x = Screen.width;
+        previousResolution.y = Screen.height;
     }
 }

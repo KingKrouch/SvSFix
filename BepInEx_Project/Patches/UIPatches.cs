@@ -273,7 +273,7 @@ public partial class SvSFix
         [HarmonyPostfix]
         public static void AdvCreateLetterboxes(AdvUiIcon __instance)
         {
-            // var blackBarActor = CreateBlackBars(__instance.gameObject); // TODO: Fix component to display properly, for now, we are gonna have to go without.
+            var blackBarActor = CreateBlackBars(__instance.gameObject); // TODO: Fix component to display properly, for now, we are gonna have to go without.
         }
 
         [HarmonyPatch(typeof(GameUiWorldMap), "Awake")]
@@ -282,22 +282,17 @@ public partial class SvSFix
         {
             // For now, zooming into the minimap is going to have to do, at least until I can fix the pillarbox actor.
             var objectinstance = __instance.gameObject;
-            var objectCanvas = objectinstance.transform.Find("Canvas");
-            var objectScaler = objectCanvas.GetComponent<CanvasScaler>();
-            objectScaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
-                
-            //if (!_createdBlackBarActorInWorldMap) // TODO: Fix component to display properly, for now, we are gonna have to Zoom in on the minimap.
-            //{
-            //_blackBarActorWorldMap = CreateBlackBars(__instance.gameObject);
-            //if (_blackBarActorWorldMap != null)
-            //{
-            //_blackBarActorWorldMapComponent = _blackBarActorWorldMap.GetComponent<BlackBarController>();
-            //if (_blackBarActorWorldMapComponent != null)
-            //{
-            //_createdBlackBarActorInWorldMap = true;
-            //}
-            //}
-            //}
+            //var objectCanvas = objectinstance.transform.Find("Canvas");
+            //var objectScaler = objectCanvas.GetComponent<CanvasScaler>();
+            //objectScaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
+
+            if (_createdBlackBarActorInWorldMap) return; // TODO: Fix component to display properly, for now, we are gonna have to Zoom in on the minimap.
+            _blackBarActorWorldMap = CreateBlackBars(__instance.gameObject);
+            if (_blackBarActorWorldMap == null) return;
+            _blackBarActorWorldMapComponent = _blackBarActorWorldMap.GetComponent<BlackBarController>();
+            if (_blackBarActorWorldMapComponent != null) {
+                _createdBlackBarActorInWorldMap = true;
+            }
         }
             
         public static GameObject CreateBlackBars(GameObject parent)
@@ -322,6 +317,11 @@ public partial class SvSFix
                     controllerComponent.pillarboxRight = (Image)prefab.transform.Find("Pillarbox/Right")
                         .GetComponentInChildren(typeof(Image), true);
                     controllerComponent.opacity = 1.0f;
+
+                    var canvases = blackBarController.GetComponentsInChildren<Canvas>();
+                    foreach (var c in canvases) {
+                        c.sortingOrder = 7936;
+                    } // This should in theory fix the sorting issue with the auto/skip/stop elements.
                     _log.LogInfo("Created BlackBarController Actor.");
                 }
                 else { _log.LogError("BlackBarController Component was already created. Couldn't Spawn BlackBarController Actor."); return null; }
