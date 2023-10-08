@@ -1,12 +1,17 @@
 using UnityEngine;
+using UnityEngine.UI;
+
 namespace SvSFix.Controllers;
+
 public class CustomMapUnitController : MapUnitCollisionCharacterControllerComponent
 {
-    private void FixedUpdate()
+    private TransformInterpolator transformInterpolator;
+    private void Start()
     {
-        return;
+        transformInterpolator = gameObject.AddComponent<TransformInterpolator>();
     }
-    private void Update()
+    
+    private void FixedUpdate()
     {
         if (this.collision_ == null || this.character_controller_ == null || this.collision_.IsCollisionInvalid()) {
             return;
@@ -14,9 +19,9 @@ public class CustomMapUnitController : MapUnitCollisionCharacterControllerCompon
         if (!this.collision_.IsStandGroundHeight()) {
             this.collision_.ExtrusionAdd();
         }
-        Vector3 origin_position = Vector3.zero;
-        Vector3 now_position = Vector3.zero;
-        float ground_height = 0f;
+        var origin_position = Vector3.zero;
+        var now_position = Vector3.zero;
+        var ground_height = 0f;
         if (this.collision_.UpdatePrevious(ref origin_position, ref now_position, out ground_height, GameTime.ScaledDeltaTime))
         {
             this.collision_.GravityGroundCapsule(ref now_position, in ground_height, GameTime.ScaledDeltaTime);
@@ -29,23 +34,29 @@ public class CustomMapUnitController : MapUnitCollisionCharacterControllerCompon
             this.collision_.UpdateAfter();
             this.collision_.collider_list_collision_stay_.Clear();
         }
+        //return;
+    }
+    private void Update()
+    {
+        // TODO: Give the player the option between Delta Time and Interpolation Ticks for Character Movement.
     }
 }
 public class CustomRigidBodyController : MapUnitCollisionRigidbodyComponent
 {
-    private void FixedUpdate()
+    private TransformInterpolator transformInterpolator;
+    private void Start()
     {
-        return;
+        transformInterpolator = gameObject.AddComponent<TransformInterpolator>();
     }
-    private void Update()
+    private void FixedUpdate()
     {
         if (this.collision_ == null || this.rigidbody_component_ == null || this.collision_.IsCollisionInvalid()) {
             return;
         }
         this.collision_.ExtrusionAdd();
-        Vector3 zero = Vector3.zero;
-        Vector3 zero2 = Vector3.zero;
-        float num = 0f;
+        var zero = Vector3.zero;
+        var zero2 = Vector3.zero;
+        var num = 0f;
         if (!this.collision_.UpdatePrevious(ref zero, ref zero2, out num, GameTime.ScaledDeltaTime)) {
             return;
         }
@@ -59,5 +70,10 @@ public class CustomRigidBodyController : MapUnitCollisionRigidbodyComponent
             this.collision_.unit_base_.transform.position = zero2;
         }
         this.collision_.UpdateAfter();
+        //return;
+    }
+    private void Update()
+    {
+        // TODO: Give the player the option between Delta Time and Interpolation Ticks for Character Movement.
     }
 }
