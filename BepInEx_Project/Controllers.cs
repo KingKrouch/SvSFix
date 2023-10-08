@@ -8,10 +8,12 @@ public class CustomMapUnitController : MapUnitCollisionCharacterControllerCompon
     private TransformInterpolator transformInterpolator;
     private void Start()
     {
-        transformInterpolator = gameObject.AddComponent<TransformInterpolator>();
+        if (SvSFix._bUseDeltaTimeForMovement.Value) {
+            transformInterpolator = gameObject.AddComponent<TransformInterpolator>();
+        }
     }
-    
-    private void FixedUpdate()
+
+    private void MovementUpdate()
     {
         if (this.collision_ == null || this.character_controller_ == null || this.collision_.IsCollisionInvalid()) {
             return;
@@ -34,11 +36,21 @@ public class CustomMapUnitController : MapUnitCollisionCharacterControllerCompon
             this.collision_.UpdateAfter();
             this.collision_.collider_list_collision_stay_.Clear();
         }
-        //return;
+    }
+    
+    private void FixedUpdate()
+    {
+        if (SvSFix._bUseDeltaTimeForMovement.Value) { // This should allow us to adjust our desired movement mode.
+            return;
+        }
+        MovementUpdate();
     }
     private void Update()
     {
-        // TODO: Give the player the option between Delta Time and Interpolation Ticks for Character Movement.
+        if (!SvSFix._bUseDeltaTimeForMovement.Value) { // This should allow us to adjust our desired movement mode.
+            return;
+        }
+        MovementUpdate();
     }
 }
 public class CustomRigidBodyController : MapUnitCollisionRigidbodyComponent
@@ -46,9 +58,12 @@ public class CustomRigidBodyController : MapUnitCollisionRigidbodyComponent
     private TransformInterpolator transformInterpolator;
     private void Start()
     {
-        transformInterpolator = gameObject.AddComponent<TransformInterpolator>();
+        if (SvSFix._bUseDeltaTimeForMovement.Value) {
+            transformInterpolator = gameObject.AddComponent<TransformInterpolator>();
+        }
     }
-    private void FixedUpdate()
+
+    private void MovementUpdate()
     {
         if (this.collision_ == null || this.rigidbody_component_ == null || this.collision_.IsCollisionInvalid()) {
             return;
@@ -70,10 +85,23 @@ public class CustomRigidBodyController : MapUnitCollisionRigidbodyComponent
             this.collision_.unit_base_.transform.position = zero2;
         }
         this.collision_.UpdateAfter();
-        //return;
+    }
+    
+    private void FixedUpdate()
+    {
+        if (SvSFix._bUseDeltaTimeForMovement.Value)
+        {
+            return;
+        }
+        MovementUpdate();
     }
     private void Update()
     {
+        if (!SvSFix._bUseDeltaTimeForMovement.Value)
+        {
+            return;
+        }
+        MovementUpdate();
         // TODO: Give the player the option between Delta Time and Interpolation Ticks for Character Movement.
     }
 }
