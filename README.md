@@ -25,6 +25,10 @@ You will need to append this to the beginning of the game's launch options befor
 ### Special Thanks To:
 [Lyall](https://github.com/Lyall) and [PhantomGamers](https://github.com/PhantomGamers) for advice relating to BepInEx and Unity modding.
 
+## Notes:
+☕ If you've enjoyed or gotten usage from my work *(keep in mind, I do a majority of this completely for free on my spare time with no donations or compensation)*, please consider supporting my Ko-Fi below:
+<br><br>[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/kingkrouch)
+
 ## Licensing
 - [BepinEx](https://github.com/BepInEx/BepInEx) is licensed under the GNU Lesser General Public License v2.1.
 
