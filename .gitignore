@@ -11,7 +11,7 @@
 /[Mm]emoryCaptures/
 
 # Ignore Compiled Binaries
-/bin
+/BepInEx_Project/bin
 
 # Asset meta data should only be ignored when the corresponding asset is also ignored
 !/[Aa]ssets/**/*.meta
@@ -40,6 +40,7 @@ ExportedObj/
 *.svd
 *.opendb
 *.VC.db
+/BepInEx_Project/obj
 
 # Unity3D generated meta files
 *.pidb.meta

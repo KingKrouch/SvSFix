@@ -13,6 +13,7 @@ using UnityEngine.InputSystem.XInput;
 // Game and Plugin Stuff
 using Game.Input.Local;
 using Game.UI;
+using Game.UI.Global.Resource;
 using Game.UI.Local;
 using IF.Steam;
 using Steamworks;
@@ -145,6 +146,16 @@ namespace SvSFix
                         }
                     }
                 }
+            }
+
+            [HarmonyPatch(typeof(Game.UI.Global.Resource.GameUiGlobalResource), nameof(Game.UI.Global.Resource.GameUiGlobalResource))]
+            public static void Load(Game.UI.Global.Resource.GameUiGlobalResource __instance)
+            {
+                //if (__instance.IconInput == null)
+                //{
+                    //__instance.IconInput = new GameUiIcon.Input();
+                    //__instance.IconInput?.Load("Assets/Project/AppData/Game/Interface/Icon/icon_input_PC.spriteatlas");
+                //}
             }
 
             //private static AssetBundle spriteAssetBundle = AssetBundle.LoadFromFile(Path.Combine(Application.streamingAssetsPath, "aa", "StandaloneWindows64", "interfaceglobal_assets_all.bundle"));

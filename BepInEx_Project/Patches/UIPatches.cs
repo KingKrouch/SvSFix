@@ -88,7 +88,7 @@ public partial class SvSFix
         public static void GameUiPhotoModeReady() // TODO: Fix hook not working.
         {
             _log.LogInfo("Opened Photo Mode.");
-            // So we are essentially gonana look for an object with the MainMenuTop component, and then check if it belongs to a parent of GameUiMainMenuStatus before creating the aspect ratio fitter component.
+            // So we are essentially gonna look for an object with the MainMenuTop component, and then check if it belongs to a parent of GameUiMainMenuStatus before creating the aspect ratio fitter component.
             var menuPhotoMode = FindObjectsOfType<GameUiPhotoMode>();
             //menuTop[0].transform.parent == FindObjectOfType(GameUiMainMenuStatus);
             _log.LogInfo("Found " + menuPhotoMode[0].name + " possessing a GameUiPhotoMode component.");

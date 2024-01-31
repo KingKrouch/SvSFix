@@ -3,6 +3,7 @@ using BepInEx.Configuration;
 // Unity and System Stuff
 using System;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 namespace SvSFix;
@@ -90,6 +91,7 @@ public partial class SvSFix
         public static ConfigEntry<int> _iForcedTextureQuality; // Default is 0, goes up to 1/14th resolution.
         public static ConfigEntry<int> _anisotropicFiltering; // 0: Off, 2: 2xAF, 4: 4xAF, 8: 8xAF, 16: 16xAF.
         public static ConfigEntry<bool> _bPostProcessing; // Quick Toggle for Post-Processing
+        public static ConfigEntry<bool> _bMultiThreadedRendering; // This should be disabled if you want to use Unity's graphics profiler.
 
         // Framelimiter Config
         public static ConfigEntry<int> _iFrameInterval; // "0" disables the framerate cap, "1" caps at your screen refresh rate, "2" caps at half refresh, "3" caps at 1/3rd refresh, "4" caps at quarter refresh.
@@ -157,7 +159,10 @@ public partial class SvSFix
             
             _bPostProcessing = Config.Bind("Graphics", "Post-Processing", true,
                 "On: Enables Post-Processing (Default), Off: Disables Post-Processing (Which may be handy for certain configurations)");
-            
+
+            _bMultiThreadedRendering = Config.Bind("Graphics", "Multithreaded Rendering", true,
+            "On: Enables Graphics Jobs (Default), Off: Only use this if you want to use Unity's graphics profiler to profile rendering performance.");
+
             _anisotropicFiltering = Config.Bind("Graphics", "Anisotropic Filtering", 0,
                 new ConfigDescription("0: Off, 2: 2xAF, 4: 4xAF, 8: 8xAF, 16: 16xAF",
                     new AcceptableValueRange<int>(0, 16)));
@@ -208,6 +213,16 @@ public partial class SvSFix
             Texture.masterTextureLimit      = _iForcedTextureQuality.Value; // Can raise this to force lower the texture size. Goes up to 14.
             QualitySettings.maximumLODLevel = _iForcedLodQuality.Value; // Can raise this to force lower the LOD settings. 3 at max if you want it to look like a blockout level prototype.
             QualitySettings.lodBias         = _fLodBias.Value;
+            
+            // TODO: Find a way to disable Graphics Jobs if Multithreaded Rendering in the config is set to false. We need it disabled to use the graphics profiler in Unity.
+            switch (_bMultiThreadedRendering.Value) {
+                case true:
+                    break;
+                case false:
+                    break; 
+                default:
+                    break;
+            }
             
             // Let's adjust some of the Render Pipeline Settings during runtime.
             var asset = (UniversalRenderPipelineAsset)QualitySettings.renderPipeline;
