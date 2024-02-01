@@ -17,6 +17,9 @@
 - Extract the .zip archive's contents into the game directory.<br />(e.g. "**steamapps\common\Neptunia Sisters VS Sisters**" for Steam).
 - To adjust any settings open the config file located in **\BepInEx\Config\SvSFix.cfg**
 
+## Compilation Notes
+If you want to do any content related modifications, make sure to install Unity 2021.2.5f1 through [Unity's Download Archive](https://unity.com/releases/editor/archive).
+
 ## Linux and Steam Deck Notes
 If you are playing on Linux or the Steam Deck, you will need to adjust the game's launch options through the game properties on Steam.
 
