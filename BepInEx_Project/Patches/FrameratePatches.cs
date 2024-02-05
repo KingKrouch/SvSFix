@@ -33,22 +33,25 @@ public partial class SvSFix
         [HarmonyPrefix]
         public static bool NullifyFixedUpdate()
         {
-            return false; // We are simply going to tell FixedUpdate to fuck off, and then reimplement everything in an Update method.
+            return _bUseDeltaTimeForMovement.Value switch {
+                true => false // We are simply going to tell FixedUpdate to fuck off, and then reimplement everything in an Update method.
+                ,
+                false => true // This should in theory fix the stuck player movement when using interpolation.
+            };
         }
             
         [HarmonyPatch(typeof(MapUnitCollisionCharacterControllerComponent), nameof(MapUnitCollisionCharacterControllerComponent.Setup), new Type[]{ typeof(GameObject), typeof(float), typeof(float), typeof(MapUnitBaseComponent) })]
         [HarmonyPostfix]
         public static void ReplaceWithCustomCharacterControllerComponent()
         {
-            _log.LogInfo("Hooked!");
+            _log.LogInfo("MapUnitCollisionCharacterControllerComponent has been hooked!");
             // This may or may not work properly. Normally I'd get the instance per HarmonyX's documentation, but that doesn't work here for some arbitrary reason.
             var c = FindObjectsOfType<MapUnitCollisionCharacterControllerComponent>();
             _log.LogInfo("Found " + c[0].name + " possessing a CharacterController component.");
             var newMuc = c[0].gameObject.AddComponent(typeof(CustomMapUnitController)) as CustomMapUnitController;
             var ogMuc  = c[0].gameObject.GetComponent(typeof(MapUnitCollisionCharacterControllerComponent)) as MapUnitCollisionCharacterControllerComponent;
             if (ogMuc != null) {
-                if (newMuc != null)
-                {
+                if (newMuc != null) {
                     // Copies the properties of the original component before we opt out of using it, and use our own.
                     newMuc.character_controller_                   = ogMuc.character_controller_;
                     newMuc.collision_                              = ogMuc.collision_;
@@ -65,16 +68,14 @@ public partial class SvSFix
         [HarmonyPostfix]
         public static void ReplaceWithCustomRigidBodyComponent()
         {
-            _log.LogInfo("Hooked!");
+            _log.LogInfo("MapUnitCollisionRigidbodyComponent has been hooked!");
             // This may or may not work properly. Normally I'd get the instance per HarmonyX's documentation, but that doesn't work here for some arbitrary reason.
             var c = FindObjectsOfType<MapUnitCollisionRigidbodyComponent>();
             _log.LogInfo("Found " + c[0].name + " possessing a RigidBodyController component.");
             var newRbc = c[0].gameObject.AddComponent( typeof(CustomRigidBodyController)) as CustomRigidBodyController;
             var ogRbc  = c[0].gameObject.GetComponent(typeof(MapUnitCollisionRigidbodyComponent)) as MapUnitCollisionRigidbodyComponent;
-            if (ogRbc != null)
-            {
-                if (newRbc != null)
-                {
+            if (ogRbc != null) {
+                if (newRbc != null) {
                     // Copies the properties of the original component before we opt out of using it, and use our own.
                     newRbc.collision_ = ogRbc.collision_;
                     newRbc.character_controller_unit_radius_scale_ = ogRbc.character_controller_unit_radius_scale_;

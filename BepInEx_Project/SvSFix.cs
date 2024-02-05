@@ -36,6 +36,7 @@ namespace SvSFix
             Harmony.CreateAndPatchAll(typeof(FOVPatches));
             Harmony.CreateAndPatchAll(typeof(InputPatches));
             Harmony.CreateAndPatchAll(typeof(PhotoModePatches));
+            Harmony.CreateAndPatchAll(typeof(GraphicsPatches));
         }
 
         private static bool InitializeFramelimiter()
