@@ -74,17 +74,18 @@ public partial class SvSFix
         public static ConfigEntry<bool> _bMajorAxisFOVScaling; // On: Vert- Behavior below 16:9, Off: Default Hor+ Behavior.
 
         // Graphics Config
-        public static ConfigEntry<int>    _imsaaCount;            // 0: Off, 2: 2x MSAA (In-game default), 4: 4x MSAA, 8: 8x MSAA.
-        public static ConfigEntry<string> _sPostAAType;           // Going to convert an string to one of the enumerator values.
-        public static ConfigEntry<int>    _resolutionScale;       // Goes from 25% to 200%. Then it's adjusted to a floating point value between 0.25-2.00x.
-        public static ConfigEntry<string> _sShadowQuality;        // Going to convert an string to one of the enumerator values.
-        public static ConfigEntry<int>    _shadowCascades;        // 0: No Shadows, 2: 2 Shadow Cascades, 4: 4 Shadow Cascades (Default)
-        public static ConfigEntry<float>  _fLodBias;              // Default is 1.00, but this can be adjusted for an increased or decreased draw distance. 4.00 is the max I'd personally recommend for performance reasons.
-        public static ConfigEntry<int>    _iForcedLodQuality;     // Default is 0, goes up to LOD #3 without cutting insane amounts of level geometry.
-        public static ConfigEntry<int>    _iForcedTextureQuality; // Default is 0, goes up to 1/14th resolution.
-        public static ConfigEntry<int>    _anisotropicFiltering;  // 0: Off, 2: 2xAF, 4: 4xAF, 8: 8xAF, 16: 16xAF.
-        public static ConfigEntry<bool>   _bPostProcessing;       // Quick Toggle for Post-Processing
-        public static ConfigEntry<bool>   _screenSpaceAmbientOcclusion;  // Toggle for SSAO.
+        public static ConfigEntry<int>    _imsaaCount;                  // 0: Off, 2: 2x MSAA (In-game default), 4: 4x MSAA, 8: 8x MSAA.
+        public static ConfigEntry<string> _sPostAAType;                 // Going to convert an string to one of the enumerator values.
+        public static ConfigEntry<int>    _resolutionScale;             // Goes from 25% to 200%. Then it's adjusted to a floating point value between 0.25-2.00x.
+        public static ConfigEntry<string> _sShadowQuality;              // Going to convert an string to one of the enumerator values.
+        public static ConfigEntry<int>    _shadowCascades;              // 0: No Shadows, 2: 2 Shadow Cascades, 4: 4 Shadow Cascades (Default)
+        public static ConfigEntry<float>  _fLodBias;                    // Default is 1.00, but this can be adjusted for an increased or decreased draw distance. 4.00 is the max I'd personally recommend for performance reasons.
+        public static ConfigEntry<int>    _iForcedLodQuality;           // Default is 0, goes up to LOD #3 without cutting insane amounts of level geometry.
+        public static ConfigEntry<int>    _iForcedTextureQuality;       // Default is 0, goes up to 1/14th resolution.
+        public static ConfigEntry<int>    _anisotropicFiltering;        // 0: Off, 2: 2xAF, 4: 4xAF, 8: 8xAF, 16: 16xAF.
+        public static ConfigEntry<bool>   _bPostProcessing;             // Quick Toggle for Post-Processing
+        public static ConfigEntry<bool>   _screenSpaceAmbientOcclusion; // Toggle for SSAO.
+        public static ConfigEntry<int>    _grassDensity;                // Goes from 0% to 100%.
 
         // Framelimiter Config
         public static ConfigEntry<int> _iFrameInterval; // "0" disables the framerate cap, "1" caps at your screen refresh rate, "2" caps at half refresh, "3" caps at 1/3rd refresh, "4" caps at quarter refresh.
@@ -141,6 +142,8 @@ public partial class SvSFix
             _anisotropicFiltering = Config.Bind("Graphics", "Anisotropic Filtering", 0, new ConfigDescription("0: Off, 2: 2xAF, 4: 4xAF, 8: 8xAF, 16: 16xAF", new AcceptableValueRange<int>(0, 16)));
 
             _screenSpaceAmbientOcclusion = Config.Bind("Graphics", "Screen Space Ambient Occlusion (SSAO)", true, new ConfigDescription("On: Enables SSAO (Default), Off: Disables SSAO."));
+
+            _grassDensity = Config.Bind("Graphics", "Grass Density", 100, new ConfigDescription("Goes from 0% to 100%.", new AcceptableValueRange<int>(0, 100)));
             
             // Framelimiter Config
             _iFrameInterval = Config.Bind("Framerate", "Framerate Cap Interval", 1, new ConfigDescription("0 disables the framerate limiter, 1 caps at your screen refresh rate, 2 caps at half refresh, 3 caps at 1/3rd refresh, 4 caps at quarter refresh.", new AcceptableValueRange<int>(0, 4)));
