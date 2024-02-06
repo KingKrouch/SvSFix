@@ -19,32 +19,27 @@ public partial class SvSFix
         {
             var renderPipeline = QualitySettings.renderPipeline;
             Debug.Log("Render pipeline type: " + renderPipeline.GetType().ToString());
-            switch (renderPipeline is UniversalRenderPipelineAsset) {
-                case true: {
-                    var asset = QualitySettings.renderPipeline as UniversalRenderPipelineAsset;
-                    // Use reflection to access the 'rendererFeatures' property
-                    FieldInfo rendererDataList        = asset.GetType().GetField("m_RendererDataList", BindingFlags.Instance | BindingFlags.NonPublic);
-                    if (rendererDataList == null) {
-                        _log.LogError("RendererDataList returned Null.");
-                        return;
-                    }
-                    var scriptableRendererData = ((ScriptableRendererData[])rendererDataList?.GetValue(asset));
-                    if (scriptableRendererData != null && scriptableRendererData.Length > 0) {
-                        foreach (var rendererData in scriptableRendererData) {
-                            foreach (var rendererFeature in rendererData.rendererFeatures) {
-                                if (rendererFeature.name == "SSAO") {
-                                    _log.LogInfo("SSAO Found! " + (toggle ? "Toggling On." : "Toggling Off."));
-                                    rendererFeature.SetActive(toggle);
-                                    return;
-                                }
-                            }
+            if (renderPipeline is not UniversalRenderPipelineAsset) {
+                Debug.LogError("Render pipeline is not of type UniversalRenderPipelineAsset.");
+                return;
+            }
+            var asset = QualitySettings.renderPipeline as UniversalRenderPipelineAsset;
+            // Use reflection to access the 'rendererFeatures' property
+            FieldInfo rendererDataList = asset.GetType().GetField("m_RendererDataList", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (rendererDataList == null) {
+                _log.LogError("RendererDataList returned Null.");
+                return;
+            }
+            var scriptableRendererData = ((ScriptableRendererData[])rendererDataList?.GetValue(asset));
+            if (scriptableRendererData != null && scriptableRendererData.Length > 0) {
+                foreach (var rendererData in scriptableRendererData) {
+                    foreach (var rendererFeature in rendererData.rendererFeatures) {
+                        if (rendererFeature.name == "SSAO") {
+                            _log.LogInfo("SSAO Found! " + (toggle ? "Toggling On." : "Toggling Off."));
+                            rendererFeature.SetActive(toggle);
+                            return;
                         }
                     }
-                    break;
-                }
-                case false: {
-                    Debug.LogError("Render pipeline is not of type UniversalRenderPipelineAsset.");
-                    break;
                 }
             }
         }
@@ -54,7 +49,14 @@ public partial class SvSFix
         [HarmonyPrefix]
         public static void MapLoadHook()
         {
-            ToggleSSAO(true);
+            switch (_screenSpaceAmbientOcclusion.Value) {
+                case true:
+                    ToggleSSAO(true);
+                    break;
+                case false:
+                    ToggleSSAO(false);
+                    break;
+            }
             _log.LogInfo("Loading Map");
         }
         
