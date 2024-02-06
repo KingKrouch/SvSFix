@@ -10,7 +10,7 @@ namespace SvSFix;
 
 public partial class SvSFix
 {
-    public enum EPostAAType
+        public enum EPostAAType
         {
             Off,
             FXAA,
@@ -52,22 +52,15 @@ public partial class SvSFix
 
         public static Vector2 ShadowResVec()
         {
-            switch (_confShadowQuality) {
-            case EShadowQuality.Low:
-                return new Vector2(512, 512);
-            case EShadowQuality.Medium:
-                return new Vector2(1024, 1024);
-            case EShadowQuality.High: 
-                return new Vector2(2048, 2048);
-            case EShadowQuality.Original:
-                return new Vector2(4096, 4096);
-            case EShadowQuality.Ultra:
-                return new Vector2(8192, 8192);
-            case EShadowQuality.Extreme:
-                return new Vector2(16384, 16384);
-            default:
-                return new Vector2(4096, 4096);
-            }
+            return _confShadowQuality switch {
+                EShadowQuality.Low      => new Vector2(512,   512),
+                EShadowQuality.Medium   => new Vector2(1024,  1024),
+                EShadowQuality.High     => new Vector2(2048,  2048),
+                EShadowQuality.Original => new Vector2(4096,  4096),
+                EShadowQuality.Ultra    => new Vector2(8192,  8192),
+                EShadowQuality.Extreme  => new Vector2(16384, 16384),
+                _                       => new Vector2(4096,  4096)
+            };
         }
 
         private static string path = @"BepInEx\content\svsfix_content";
@@ -91,13 +84,10 @@ public partial class SvSFix
         public static ConfigEntry<int> _iForcedTextureQuality; // Default is 0, goes up to 1/14th resolution.
         public static ConfigEntry<int> _anisotropicFiltering; // 0: Off, 2: 2xAF, 4: 4xAF, 8: 8xAF, 16: 16xAF.
         public static ConfigEntry<bool> _bPostProcessing; // Quick Toggle for Post-Processing
-        public static ConfigEntry<bool> _bMultiThreadedRendering; // This should be disabled if you want to use Unity's graphics profiler.
 
         // Framelimiter Config
         public static ConfigEntry<int> _iFrameInterval; // "0" disables the framerate cap, "1" caps at your screen refresh rate, "2" caps at half refresh, "3" caps at 1/3rd refresh, "4" caps at quarter refresh.
         public static ConfigEntry<bool> _bvSync; // Self Explanatory. Prevents the game's framerate from going over the screen refresh rate, as that can cause screen tearing or increased energy consumption.
-        public static readonly int MaskMatrixUV = Shader.PropertyToID("mask_matrix_uv");
-        public static readonly int MaskTexture = Shader.PropertyToID("mask_texture");
         public static ConfigEntry<bool> _bUseDeltaTimeForMovement; // If disabled (default), it will use FixedUpdate with interpolation for character and NPC movement.
         
         // Input Config
@@ -106,24 +96,21 @@ public partial class SvSFix
         public static ConfigEntry<bool> _bDisableSteamInput; // For those that don't want to use SteamInput, absolutely hate it being forced, and would rather use Unity's built-in input system.
         
         // Resolution Config
-        public static ConfigEntry<bool> _bForceCustomResolution;
-        public static ConfigEntry<int> _iHorizontalResolution;
-        public static ConfigEntry<int> _iVerticalResolution;
+        public static          ConfigEntry<bool> _bForceCustomResolution;
+        public static          ConfigEntry<int>  _iHorizontalResolution;
+        public static          ConfigEntry<int>  _iVerticalResolution;
+        public static readonly int               MaskMatrixUV = Shader.PropertyToID("mask_matrix_uv");
+        public static readonly int               MaskTexture  = Shader.PropertyToID("mask_texture");
         
         private void InitConfig()
         {
             // Aspect Ratio Config
-            _bOriginalUIAspectRatio = Config.Bind("Resolution", "Original UI Aspect Ratio", true,
-                "On: Presents UI aspect ratio at 16:9 screen space, Off: Spanned UI.");
-            _bMajorAxisFOVScaling = Config.Bind("Resolution", "Major-Axis FOV Scaling", true,
-                "On: Vert- Behavior below 16:9, Off: Default Hor+ Behavior.");
-            _bPresentCutscenesWithOriginalAspectRatio = Config.Bind("Resolution", "Present Cutscenes At Original Aspect Ratio", false,
-                "On: Letterboxes/Pillarboxes cutscenes to display in 16:9, Off: Presents cutscenes without black bars (Default).");
+            _bOriginalUIAspectRatio                   = Config.Bind("Resolution", "Original UI Aspect Ratio",                   true,  "On: Presents UI aspect ratio at 16:9 screen space, Off: Spanned UI.");
+            _bMajorAxisFOVScaling                     = Config.Bind("Resolution", "Major-Axis FOV Scaling",                     true,  "On: Vert- Behavior below 16:9, Off: Default Hor+ Behavior.");
+            _bPresentCutscenesWithOriginalAspectRatio = Config.Bind("Resolution", "Present Cutscenes At Original Aspect Ratio", false, "On: Letterboxes/Pillarboxes cutscenes to display in 16:9, Off: Presents cutscenes without black bars (Default).");
 
             // Graphics Config
-            _imsaaCount = Config.Bind("Graphics", "MSAA Quality", 0,
-                new ConfigDescription("0: Off, 2: 2x MSAA (In-game default), 4: 4x MSAA, 8: 8x MSAA.",
-                    new AcceptableValueRange<int>(0, 8)));
+            _imsaaCount = Config.Bind("Graphics", "MSAA Quality", 0, new ConfigDescription("0: Off, 2: 2x MSAA (In-game default), 4: 4x MSAA, 8: 8x MSAA.", new AcceptableValueRange<int>(0, 8)));
 
             _sPostAAType = Config.Bind("Graphics", "Post-Process AA", "SMAA", "Off, FXAA, SMAA");
             if (!Enum.TryParse(_sPostAAType.Value, out _confPostAAType)) {
@@ -131,8 +118,7 @@ public partial class SvSFix
                 SvSFix._log.LogError($"PostAA Value is invalid. Defaulting to SMAA.");
             }
 
-            _resolutionScale = Config.Bind("Graphics", "Resolution Scale", 100,
-                new ConfigDescription("Goes from 25% to 200%.", new AcceptableValueRange<int>(25, 200)));
+            _resolutionScale = Config.Bind("Graphics", "Resolution Scale", 100, new ConfigDescription("Goes from 25% to 200%.", new AcceptableValueRange<int>(25, 200)));
 
             _sShadowQuality = Config.Bind("Graphics", "Shadow Quality", "Original",
                 "Low (512), Medium (1024), High (2048), Original (4096), Ultra (8192), Extreme (16384)");
@@ -141,43 +127,24 @@ public partial class SvSFix
                 SvSFix._log.LogError($"ShadowQuality Value is invalid. Defaulting to Original.");
             }
 
-            _shadowCascades = Config.Bind("Graphics", "Shadow Cascades", 4,
-                new ConfigDescription("0: No Shadows, 2: 2 Shadow Cascades, 4: 4 Shadow Cascades (Default)",
-                    new AcceptableValueRange<int>(0, 4)));
+            _shadowCascades = Config.Bind("Graphics", "Shadow Cascades", 4, new ConfigDescription("0: No Shadows, 2: 2 Shadow Cascades, 4: 4 Shadow Cascades (Default)", new AcceptableValueRange<int>(0, 4)));
             
-            _fLodBias = Config.Bind("Graphics", "Draw Distance (Lod Bias)", (float)1.00,
-                new ConfigDescription(
-                    "Default is 1.00, but this can be adjusted for an increased or decreased draw distance. 4.00 is the max I'd personally recommend for performance reasons."));
+            _fLodBias = Config.Bind("Graphics", "Draw Distance (Lod Bias)", (float)1.00, new ConfigDescription("Default is 1.00, but this can be adjusted for an increased or decreased draw distance. 4.00 is the max I'd personally recommend for performance reasons."));
 
-            _iForcedLodQuality = Config.Bind("Graphics", "LOD Quality", 0,
-                new ConfigDescription("0: No Forced LODs (Default), 1: Forces LOD # 1, 2: Forces LOD # 2, 3: Forces LOD # 3. Higher the value, the less mesh detail.",
-                    new AcceptableValueRange<int>(0, 3)));
+            _iForcedLodQuality = Config.Bind("Graphics", "LOD Quality", 0, new ConfigDescription("0: No Forced LODs (Default), 1: Forces LOD # 1, 2: Forces LOD # 2, 3: Forces LOD # 3. Higher the value, the less mesh detail.", new AcceptableValueRange<int>(0, 3)));
             
-            _iForcedTextureQuality = Config.Bind("Graphics", "Texture Quality", 0,
-                new ConfigDescription("0: Full Resolution (Default), 1: Half-Res, 2: Quarter Res. Goes up to 1/14th res (14).",
-                    new AcceptableValueRange<int>(0, 14)));
+            _iForcedTextureQuality = Config.Bind("Graphics", "Texture Quality", 0, new ConfigDescription("0: Full Resolution (Default), 1: Half-Res, 2: Quarter Res. Goes up to 1/14th res (14).", new AcceptableValueRange<int>(0, 14)));
             
-            _bPostProcessing = Config.Bind("Graphics", "Post-Processing", true,
-                "On: Enables Post-Processing (Default), Off: Disables Post-Processing (Which may be handy for certain configurations)");
-
-            _bMultiThreadedRendering = Config.Bind("Graphics", "Multithreaded Rendering", true,
-            "On: Enables Graphics Jobs (Default), Off: Only use this if you want to use Unity's graphics profiler to profile rendering performance.");
-
-            _anisotropicFiltering = Config.Bind("Graphics", "Anisotropic Filtering", 0,
-                new ConfigDescription("0: Off, 2: 2xAF, 4: 4xAF, 8: 8xAF, 16: 16xAF",
-                    new AcceptableValueRange<int>(0, 16)));
+            _bPostProcessing = Config.Bind("Graphics", "Post-Processing", true, "On: Enables Post-Processing (Default), Off: Disables Post-Processing (Which may be handy for certain configurations)");
+            
+            _anisotropicFiltering = Config.Bind("Graphics", "Anisotropic Filtering", 0, new ConfigDescription("0: Off, 2: 2xAF, 4: 4xAF, 8: 8xAF, 16: 16xAF", new AcceptableValueRange<int>(0, 16)));
 
             // Framelimiter Config
-            _iFrameInterval = Config.Bind("Framerate", "Framerate Cap Interval", 1,
-                new ConfigDescription(
-                    "0 disables the framerate limiter, 1 caps at your screen refresh rate, 2 caps at half refresh, 3 caps at 1/3rd refresh, 4 caps at quarter refresh.",
-                    new AcceptableValueRange<int>(0, 4)));
+            _iFrameInterval = Config.Bind("Framerate", "Framerate Cap Interval", 1, new ConfigDescription("0 disables the framerate limiter, 1 caps at your screen refresh rate, 2 caps at half refresh, 3 caps at 1/3rd refresh, 4 caps at quarter refresh.", new AcceptableValueRange<int>(0, 4)));
 
-            _bvSync = Config.Bind("Framerate", "VSync", true,
-                "Self Explanatory. Prevents the game's framerate from going over the screen refresh rate, as that can cause screen tearing or increased energy consumption.");
+            _bvSync = Config.Bind("Framerate", "VSync", true, "Self Explanatory. Prevents the game's framerate from going over the screen refresh rate, as that can cause screen tearing or increased energy consumption.");
             
-            _bUseDeltaTimeForMovement = Config.Bind("Framerate", "Delta Time Movement", false,
-                "If disabled (default), it will use FixedUpdate with interpolation for character and NPC movement. Only enable this if interpolation doesn't give you smooth player movement.");
+            _bUseDeltaTimeForMovement = Config.Bind("Framerate", "Delta Time Movement", false, "If disabled (default), it will use FixedUpdate with interpolation for character and NPC movement. Only enable this if interpolation doesn't give you smooth player movement.");
             
             // Input Config
             _sInputType = Config.Bind("Input", "Input Type", "Automatic", "Automatic, KBM, Controller");
@@ -192,14 +159,12 @@ public partial class SvSFix
                 SvSFix._log.LogError($"Controller Type Value is invalid. Defaulting to Automatic.");
             }
             
-            _bDisableSteamInput = Config.Bind("Input", "Force Disable SteamInput", false,
-                "Self Explanatory. Prevents SteamInput from ever running, forcefully, for those using DS4Windows/DualSenseX or wanting native controller support. Make sure to disable SteamInput in the controller section of the game's properties on Steam alongside this option.");
+            _bDisableSteamInput = Config.Bind("Input", "Force Disable SteamInput", false, "Self Explanatory. Prevents SteamInput from ever running, forcefully, for those using DS4Windows/DualSenseX or wanting native controller support. Make sure to disable SteamInput in the controller section of the game's properties on Steam alongside this option.");
             
             // Resolution Config
-            _bForceCustomResolution = Config.Bind("Resolution", "Force Custom Resolution", false,
-                "Self Explanatory. A temporary toggle for custom resolutions until I can figure out how to go about removing the resolution count restrictions.");
-            _iHorizontalResolution = Config.Bind("Resolution", "Horizontal Resolution", 1280);
-            _iVerticalResolution = Config.Bind("Resolution", "Vertical Resolution", 720);
+            _bForceCustomResolution = Config.Bind("Resolution", "Force Custom Resolution", false, "Self Explanatory. A temporary toggle for custom resolutions until I can figure out how to go about removing the resolution count restrictions.");
+            _iHorizontalResolution  = Config.Bind("Resolution", "Horizontal Resolution",   1280);
+            _iVerticalResolution    = Config.Bind("Resolution", "Vertical Resolution",     720);
         }
         
         private static void LoadGraphicsSettings()
@@ -214,25 +179,23 @@ public partial class SvSFix
             QualitySettings.maximumLODLevel = _iForcedLodQuality.Value; // Can raise this to force lower the LOD settings. 3 at max if you want it to look like a blockout level prototype.
             QualitySettings.lodBias         = _fLodBias.Value;
             
-            // TODO: Find a way to disable Graphics Jobs if Multithreaded Rendering in the config is set to false. We need it disabled to use the graphics profiler in Unity.
-            switch (_bMultiThreadedRendering.Value) {
+            // Let's adjust some of the Render Pipeline Settings during runtime.
+            var renderPipeline = QualitySettings.renderPipeline;
+            Debug.Log("Render pipeline type: " + renderPipeline.GetType().ToString());
+            switch (renderPipeline is UniversalRenderPipelineAsset) {
                 case true:
+                    var asset = QualitySettings.renderPipeline as UniversalRenderPipelineAsset;
+                    asset.renderScale = (float)_resolutionScale.Value / 100;
+                    //ShadowSettings.mainLightShadowmapResolution        = (int)shadowResVec().x; // TODO: Find a way to write to this.
+                    //ShadowSettings.additionalLightShadowResolution     = (int)shadowResVec().y;
+                    asset.msaaSampleCount = _imsaaCount.Value;
+                    asset.shadowCascadeCount = _shadowCascades.Value;
+                    QualitySettings.renderPipeline = asset;
                     break;
                 case false:
-                    break; 
-                default:
+                    Debug.LogError("Render pipeline is not of type UniversalRenderPipelineAsset.");
                     break;
             }
-            
-            // Let's adjust some of the Render Pipeline Settings during runtime.
-            var asset = (UniversalRenderPipelineAsset)QualitySettings.renderPipeline;
-
-            asset.renderScale = (float)_resolutionScale.Value / 100;
-            //ShadowSettings.mainLightShadowmapResolution        = (int)shadowResVec().x; // TODO: Find a way to write to this.
-            //ShadowSettings.additionalLightShadowResolution     = (int)shadowResVec().y;
-            asset.msaaSampleCount = _imsaaCount.Value;
-            asset.shadowCascadeCount = _shadowCascades.Value;
-            QualitySettings.renderPipeline = asset;
             
             // TODO: Figure out why this isn't working properly.
             // Now let's adjust the post-processing settings for the camera.
