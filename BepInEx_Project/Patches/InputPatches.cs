@@ -177,13 +177,53 @@ namespace SvSFix
             [HarmonyPrefix]
             public static bool ChangeConfirmButton(ref bool __result)
             {
-                if (UnityEngine.InputSystem.Gamepad.all[0].device != null) {
-                    switch (UnityEngine.InputSystem.Gamepad.all[0].device) {
-                        case SwitchProControllerHID:
-                            __result = false;
-                            return false;
+                if (advInputMgrComponent != null) // Checks if our input manager component is null before checking.
+                {
+                    switch (advInputMgrComponent.steamInputInitialized && !_bDisableSteamInput.Value) {
+                        case true: { // Check the current device through SteamInput first.
+                            var inputTypeP1 = SteamInput.GetInputTypeForHandle(advInputMgrComponent.inputHandles[0]);
+                            switch (inputTypeP1){
+                                case ESteamInputType.k_ESteamInputType_XBox360Controller:
+                                    __result = true;
+                                    return true;
+                                case ESteamInputType.k_ESteamInputType_XBoxOneController:
+                                    __result = true;
+                                    return true;
+                                case ESteamInputType.k_ESteamInputType_GenericGamepad:
+                                    __result = true;
+                                    return true;
+                                case ESteamInputType.k_ESteamInputType_SwitchJoyConPair:
+                                    __result = false;
+                                    return false;
+                                case ESteamInputType.k_ESteamInputType_SwitchJoyConSingle:
+                                    __result = false;
+                                    return false;
+                                case ESteamInputType.k_ESteamInputType_SwitchProController:
+                                    __result = false;
+                                    return false;
+                                case ESteamInputType.k_ESteamInputType_SteamDeckController:
+                                    __result = true;
+                                    return true;
+                                default:
+                                    break;
+                            }
+                            break;
+                        }
                     }
                 }
+                else { // Check the current device through Unity's own input API, as a fallback.
+                    if (UnityEngine.InputSystem.Gamepad.all[0].device != null) {
+                        switch (UnityEngine.InputSystem.Gamepad.all[0].device) {
+                            case SwitchProControllerHID:
+                                __result = false;
+                                return false;
+                            case XInputControllerWindows:
+                                __result = true;
+                                return true;
+                        }
+                    }
+                }
+                // Finally, if none of these things apply to our current controller, we go through with the change.
                 switch (_bJapaneseControllerLayout.Value) {
                     case true:
                         __result = false;
@@ -210,8 +250,6 @@ namespace SvSFix
                         if (SteamInput.GetConnectedControllers(advInputMgrComponent.inputHandles) <= 0) return original;
                         result = icon switch
                         {
-                            EnumIcon.PAD_ENTER      => Glyphs.GlyphA,
-                            EnumIcon.PAD_BACK       => Glyphs.GlyphB,
                             EnumIcon.PAD_BUTTON_L   => Glyphs.GlyphX,
                             EnumIcon.PAD_BUTTON_U   => Glyphs.GlyphY,
                             EnumIcon.PAD_BUTTON_R   => Glyphs.GlyphB,
@@ -251,6 +289,19 @@ namespace SvSFix
                             EnumIcon.PAD_START      => Glyphs.GlyphStart,
                             _ => original
                         };
+                        // We are going to do the enter and back things separately, as according to the Japanese layout.
+                        result = LibInput.IsConfirmButtonX switch {
+                            true => icon switch {
+                                EnumIcon.PAD_ENTER => Glyphs.GlyphB,
+                                EnumIcon.PAD_BACK  => Glyphs.GlyphA,
+                                _                  => result
+                            },
+                            false => icon switch {
+                                EnumIcon.PAD_ENTER => Glyphs.GlyphA,
+                                EnumIcon.PAD_BACK  => Glyphs.GlyphB,
+                                _                  => result
+                            }
+                        };
                     }
                     else {
                         if (UnityEngine.InputSystem.Gamepad.all[0].device == null) return result;
@@ -264,8 +315,6 @@ namespace SvSFix
                                 {
                                     result = icon switch
                                     {
-                                        EnumIcon.PAD_ENTER      => PS5Prompt.GetSprite("button_batu"),
-                                        EnumIcon.PAD_BACK       => PS5Prompt.GetSprite("button_maru"),
                                         EnumIcon.PAD_BUTTON_L   => PS5Prompt.GetSprite("button_sikaku"),
                                         EnumIcon.PAD_BUTTON_U   => PS5Prompt.GetSprite("button_sankaku"),
                                         EnumIcon.PAD_BUTTON_R   => PS5Prompt.GetSprite("button_maru"),
@@ -305,6 +354,19 @@ namespace SvSFix
                                         EnumIcon.PAD_START      => PS5Prompt.GetSprite("start"),
                                         _                       => original
                                     };
+                                    // Japanese Layout Check.
+                                    result = LibInput.IsConfirmButtonX switch {
+                                        true => icon switch {
+                                            EnumIcon.PAD_ENTER => PS5Prompt.GetSprite("button_maru"),
+                                            EnumIcon.PAD_BACK  => PS5Prompt.GetSprite("button_batu"),
+                                            _                  => result
+                                        },
+                                        false => icon switch {
+                                            EnumIcon.PAD_ENTER => PS5Prompt.GetSprite("button_batu"),
+                                            EnumIcon.PAD_BACK  => PS5Prompt.GetSprite("button_maru"),
+                                            _                  => result
+                                        }
+                                    };
                                 }
                                 else { result = original; }
                                 break;
@@ -314,8 +376,6 @@ namespace SvSFix
                             case DualShock4GamepadHID:
                                 if (PS4Prompt != null) {
                                     result = icon switch {
-                                        EnumIcon.PAD_ENTER      => PS4Prompt.GetSprite("button_batu"),
-                                        EnumIcon.PAD_BACK       => PS4Prompt.GetSprite("button_maru"),
                                         EnumIcon.PAD_BUTTON_L   => PS4Prompt.GetSprite("button_sikaku"),
                                         EnumIcon.PAD_BUTTON_U   => PS4Prompt.GetSprite("button_sankaku"),
                                         EnumIcon.PAD_BUTTON_R   => PS4Prompt.GetSprite("button_maru"),
@@ -354,6 +414,19 @@ namespace SvSFix
                                         EnumIcon.PAD_SELECT     => PS4Prompt.GetSprite("touch"),
                                         EnumIcon.PAD_START      => PS4Prompt.GetSprite("start"),
                                         _                       => original
+                                    };
+                                    // Japanese Layout Check.
+                                    result = LibInput.IsConfirmButtonX switch {
+                                        true => icon switch {
+                                            EnumIcon.PAD_ENTER => PS4Prompt.GetSprite("button_maru"),
+                                            EnumIcon.PAD_BACK  => PS4Prompt.GetSprite("button_batu"),
+                                            _                  => result
+                                        },
+                                        false => icon switch {
+                                            EnumIcon.PAD_ENTER => PS4Prompt.GetSprite("button_batu"),
+                                            EnumIcon.PAD_BACK  => PS4Prompt.GetSprite("button_maru"),
+                                            _                  => result
+                                        }
                                     };
                                 }
                                 else { result = original; }
