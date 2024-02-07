@@ -171,13 +171,27 @@ namespace SvSFix
                 DontDestroyOnLoad(advInputMgrObject);
                 advInputMgrComponent = advInputMgrObject.AddComponent<InputManager>();
             }
-
-            //[HarmonyPatch(typeof(GameUiIcon), "Setup")]
-            //[HarmonyPrefix]
-            //public static void ChangeConfirmButton()
-            //{
-            //SingletonMonoBehaviour<LibInput>.Instance.IsConfirmButtonX() = true;
-            //}
+            
+            // TODO: Patch the menu UI stuff to recognize Cross as Confirm, and Circle as Back when the Japanese layout is used. Also default to it with Switch controllers.
+            [HarmonyPatch(typeof(LibInput), nameof(LibInput.IsConfirmButtonX))]
+            [HarmonyPrefix]
+            public static bool ChangeConfirmButton(ref bool __result)
+            {
+                if (UnityEngine.InputSystem.Gamepad.all[0].device != null) {
+                    switch (UnityEngine.InputSystem.Gamepad.all[0].device) {
+                        case SwitchProControllerHID:
+                            __result = false;
+                            return false;
+                    }
+                }
+                switch (_bJapaneseControllerLayout.Value) {
+                    case true:
+                        __result = false;
+                        return false;
+                    case false:
+                        return true;
+                }
+            }
 
             [HarmonyPatch(typeof(GameUiIcon.Input), "GetSprite", new Type[] { typeof(EnumIcon) })]
             [HarmonyPostfix]

@@ -60,6 +60,43 @@ public partial class SvSFix
             return Screen.currentResolution.width / Screen.currentResolution.height;
         }
         
+        [HarmonyPatch(typeof(SplashSequenceManager), nameof(SplashSequenceManager.Initialize))]
+        [HarmonyPrefix]
+        public static bool SkipSplashLogos()
+        {
+            return _bSkipSplashScreenSequence.Value switch {
+                true  => false,
+                false => true
+            };
+        }
+        
+        // TODO: Figure out why a black screen randomly flickers when on the title screen.
+        [HarmonyPatch(typeof(TitleOpMovie), nameof(TitleOpMovie.Open))]
+        [HarmonyPrefix]
+        public static bool SkipTitleOpMovie(TitleOpMovie __instance)
+        {
+            switch (_bSkipSplashScreenSequence.Value) {
+                case true:
+                    __instance.OpenEnd();
+                    return false;
+                case false:
+                    return true;
+            }
+        }
+        
+        // TODO: Figure out how to properly put this in the center of the screen.
+        [HarmonyPatch(typeof(GameUiNpcTalk), "Start")]
+        [HarmonyPostfix]
+        public static void GameUiNpcTalk(GameUiNpcTalk __instance)
+        {
+            _log.LogInfo("Opened NPC Talking Dialogue.");
+            if (__instance.gameObject.GetComponent<AspectRatioFitter>() != null) return;
+            var _aspectRatioFitter = __instance.gameObject.AddComponent<AspectRatioFitter>();
+            if (_aspectRatioFitter == null) return;
+            _aspectRatioFitter.aspectRatio = OriginalAspectRatio;
+            _aspectRatioFitter.aspectMode  = AspectRatioFitter.AspectMode.FitInParent;
+        }
+        
         [HarmonyPatch(typeof(GameUiMainMenuMintubu), nameof(GameUiMainMenuMintubu.Open), new Type[] { typeof(bool) })]
         [HarmonyPostfix]
         public static void GameUiMainMenuMintubuOpen()
@@ -73,10 +110,9 @@ public partial class SvSFix
                 _log.LogInfo("Found " + menuChirper[0].name + " possessing a GameUiMainMenuMintubu component.");
                 var transform = menuChirper[0].transform.Find("Canvas/Root");
                 _gameUiMainMenuMintubuScaler = transform.gameObject.AddComponent(typeof(AspectRatioFitter)) as AspectRatioFitter;
-                if (_gameUiMainMenuMintubuScaler != null) {
-                    _gameUiMainMenuMintubuScaler.aspectRatio = OriginalAspectRatio;
-                    _gameUiMainMenuMintubuScaler.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-                }
+                if (_gameUiMainMenuMintubuScaler == null) return;
+                _gameUiMainMenuMintubuScaler.aspectRatio = OriginalAspectRatio;
+                _gameUiMainMenuMintubuScaler.aspectMode  = AspectRatioFitter.AspectMode.FitInParent;
             }
         }
 
@@ -97,15 +133,13 @@ public partial class SvSFix
             //menuTop[0].transform.parent == FindObjectOfType(GameUiMainMenuStatus);
             _log.LogInfo("Found " + menuPhotoMode[0].name + " possessing a GameUiPhotoMode component.");
             var transform = menuPhotoMode[0].transform.Find("Canvas/Root");
-            RectTransform photoModeTransform = transform.GetComponent<RectTransform>();
-            float currentAspectRatio = SystemCamera3D.GetCamera().aspect;
-            if (currentAspectRatio > OriginalAspectRatio) {
-                photoModeTransform.anchorMax = new Vector2(currentAspectRatio / OriginalAspectRatio, 0.5f);
-            }
-            else if (currentAspectRatio < OriginalAspectRatio) {
-                // TODO: Figure out why narrower aspect ratios results in the left and right being cut off, alongside the top and bottom appearing more egg-like.
-                photoModeTransform.anchorMax = new Vector2(0.5f, OriginalAspectRatio / currentAspectRatio);
-            }
+            var photoModeTransform = transform.GetComponent<RectTransform>();
+            var currentAspectRatio = SystemCamera3D.GetCamera().aspect;
+            photoModeTransform.anchorMax = currentAspectRatio switch {
+                > OriginalAspectRatio => new Vector2(currentAspectRatio / OriginalAspectRatio, 0.5f),
+                < OriginalAspectRatio => new Vector2(0.5f, OriginalAspectRatio / currentAspectRatio),
+                _                     => photoModeTransform.anchorMax
+            };
         }
 
         //[HarmonyPatch(typeof(GameUiMainMenuCharaSelect), nameof(GameUiMainMenuCharaSelect.SetActive), new Type[] { typeof(bool), typeof(bool) })]

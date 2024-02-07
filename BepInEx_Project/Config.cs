@@ -2,6 +2,7 @@
 using BepInEx.Configuration;
 // Unity and System Stuff
 using System;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -93,9 +94,10 @@ public partial class SvSFix
         public static ConfigEntry<bool> _bUseDeltaTimeForMovement; // If disabled (default), it will use FixedUpdate with interpolation for character and NPC movement.
         
         // Input Config
-        public static ConfigEntry<string> _sInputType; // Automatic, Controller, KBM (Forces a certain type of button prompts, Controller will be used if Steam Deck is detected).
-        public static ConfigEntry<string> _sControllerType; // Automatic, Xbox, PS3, PS4, PS5, Switch (If SteamInput is enabled, "Automatic" will be used regardless of settings)
-        public static ConfigEntry<bool> _bDisableSteamInput; // For those that don't want to use SteamInput, absolutely hate it being forced, and would rather use Unity's built-in input system.
+        public static ConfigEntry<string> _sInputType;                // Automatic, Controller, KBM (Forces a certain type of button prompts, Controller will be used if Steam Deck is detected).
+        public static ConfigEntry<string> _sControllerType;           // Automatic, Xbox, PS3, PS4, PS5, Switch (If SteamInput is enabled, "Automatic" will be used regardless of settings)
+        public static ConfigEntry<bool>   _bDisableSteamInput;        // For those that don't want to use SteamInput, absolutely hate it being forced, and would rather use Unity's built-in input system.
+        public static ConfigEntry<bool>   _bJapaneseControllerLayout; // True: Japanese Layout (Circle = Select, Cross = Back) in menus, False: Western Layout. Ignored when using a Nintendo controller.
         
         // Resolution Config
         public static          ConfigEntry<bool> _bForceCustomResolution;
@@ -103,6 +105,9 @@ public partial class SvSFix
         public static          ConfigEntry<int>  _iVerticalResolution;
         public static readonly int               MaskMatrixUV = Shader.PropertyToID("mask_matrix_uv");
         public static readonly int               MaskTexture  = Shader.PropertyToID("mask_texture");
+        
+        // Misc Config
+        public static ConfigEntry<bool> _bSkipSplashScreenSequence; // True: Skips Opening Splash Screen Logos and Movie, False: Default Behavior.
         
         private void InitConfig()
         {
@@ -166,11 +171,16 @@ public partial class SvSFix
             }
             
             _bDisableSteamInput = Config.Bind("Input", "Force Disable SteamInput", false, "Self Explanatory. Prevents SteamInput from ever running, forcefully, for those using DS4Windows/DualSenseX or wanting native controller support. Make sure to disable SteamInput in the controller section of the game's properties on Steam alongside this option.");
+
+            _bJapaneseControllerLayout = Config.Bind("Input", "Japanese Controller Layout in Menus", false, "True: Enables Japanese Layout Menu Navigation (Circle = Select, Cross = Back), False: Uses Western Layout (Cross = Select, Circle = Back). Ignored when using a Nintendo controller.");
             
             // Resolution Config
             _bForceCustomResolution = Config.Bind("Resolution", "Force Custom Resolution", false, "Self Explanatory. A temporary toggle for custom resolutions until I can figure out how to go about removing the resolution count restrictions.");
             _iHorizontalResolution  = Config.Bind("Resolution", "Horizontal Resolution",   1280);
             _iVerticalResolution    = Config.Bind("Resolution", "Vertical Resolution",     720);
+            
+            // Misc Config
+            _bSkipSplashScreenSequence = Config.Bind("Misc", "Skip Splash Screens and Opening Video", false, "True: Skips Splash Screen and Opening Videos for faster startup times, False: Default Functionality.");
         }
         
         private static void LoadGraphicsSettings()
@@ -191,15 +201,30 @@ public partial class SvSFix
             switch (renderPipeline is UniversalRenderPipelineAsset) {
                 case true:
                     var asset = QualitySettings.renderPipeline as UniversalRenderPipelineAsset;
-                    asset.renderScale = (float)_resolutionScale.Value / 100;
-                    //ShadowSettings.mainLightShadowmapResolution        = (int)shadowResVec().x; // TODO: Find a way to write to this.
-                    //ShadowSettings.additionalLightShadowResolution     = (int)shadowResVec().y;
-                    asset.msaaSampleCount = _imsaaCount.Value;
-                    asset.shadowCascadeCount = _shadowCascades.Value;
-                    QualitySettings.renderPipeline = asset;
+                    asset.renderScale                     = (float)_resolutionScale.Value / 100;
+                    asset.msaaSampleCount                 = _imsaaCount.Value;
+                    asset.shadowCascadeCount              = _shadowCascades.Value;
+                    
+                    // TODO: Figure out a way of getting the MainLightShadow and AdditionalLightShadow properties to work.
+                    var mainLightShadowResolutionProperty    = typeof(UniversalRenderPipelineAsset).GetProperty("mainLightShadowmapResolution");
+                    var additionalLightShadowResolutionProperty = typeof(UniversalRenderPipelineAsset).GetProperty("additionalLightShadowResolution");
+                    var opaqueDownsamplingProperty              = typeof(UniversalRenderPipelineAsset).GetProperty("m_OpaqueDownsampling");
+                    if (mainLightShadowResolutionProperty != null &&
+                        additionalLightShadowResolutionProperty != null &&
+                        opaqueDownsamplingProperty != null) {
+                        // Modify the properties using reflection
+                        mainLightShadowResolutionProperty.SetValue(asset, (int)ShadowResVec().x);
+                        additionalLightShadowResolutionProperty.SetValue(asset, (int)ShadowResVec().x);
+                        opaqueDownsamplingProperty.SetValue(asset, Downsampling._4xBilinear);
+                        Debug.Log("Shadow and Downsampling Properties Modified Successfully.");
+                    }
+                    else {
+                        Debug.LogError("Failed to find one or more properties.");
+                    }
+                    QualitySettings.renderPipeline        = asset;
                     break;
                 case false:
-                    Debug.LogError("Render pipeline is not of type UniversalRenderPipelineAsset.");
+                    Debug.LogError("Render Pipeline is not of type UniversalRenderPipelineAsset.");
                     break;
             }
             
