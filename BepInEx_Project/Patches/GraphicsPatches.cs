@@ -46,14 +46,7 @@ public partial class SvSFix
         [HarmonyPrefix]
         public static void MapLoadHook()
         {
-            switch (_screenSpaceAmbientOcclusion.Value) {
-                case true:
-                    ToggleSSAO(true);
-                    break;
-                case false:
-                    ToggleSSAO(false);
-                    break;
-            }
+            ToggleSSAO(_screenSpaceAmbientOcclusion.Value);
             _log.LogInfo("Loading Map");
         }
         
