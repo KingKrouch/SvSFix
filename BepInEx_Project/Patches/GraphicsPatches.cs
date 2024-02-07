@@ -68,6 +68,7 @@ public partial class SvSFix
         }
 
         // TODO: Figure out why this Grass Density modification is not working.
+        // I think instead, I'm gonna see if the level has loaded, check for the FinalizeScene (Scene) > Map (GameObject) > DivisionSubSceneGroup (GameObject) > mobj (GameObject)
         [HarmonyPatch(typeof(MapEditTreeComponent), MethodType.Constructor)]
         [HarmonyPostfix]
         public static void GrassDensityPatch(MapEditTreeComponent __instance)
@@ -80,10 +81,10 @@ public partial class SvSFix
             _log.LogInfo("Found MapEditTreeComponent with 'mobj' GameObject Name.");
             var grassObjects = (from Transform child in parentTransform let childGameObject = child.gameObject where childGameObject.name.Contains("grass") select child).ToList();
             // Randomly disable a percentage of grass objects.
-            DisableRandomGrassObjects(grassObjects, keepPercentage);
+            DisableRandomGrassObjects(ref grassObjects, keepPercentage);
         }
 
-        private static void DisableRandomGrassObjects(List<Transform> grassObjects, float keepPercentage)
+        private static void DisableRandomGrassObjects(ref List<Transform> grassObjects, float keepPercentage)
         {
             if (keepPercentage >= 1.0f) return;
             // Calculate the number of grass objects to keep.
@@ -92,9 +93,10 @@ public partial class SvSFix
             // Shuffle the grass objects list.
             grassObjects.Shuffle();
 
-            // Enable the first 'keepCount' grass objects.
-            for (var i = 0; i < keepCount; i++) {
-                grassObjects[i].gameObject.SetActive(true);
+            // Disable the grass objects that exceed the keep count.
+            for (var i = keepCount; i < grassObjects.Count; i++)
+            {
+                grassObjects[i].gameObject.SetActive(false);
             }
         }
     }
