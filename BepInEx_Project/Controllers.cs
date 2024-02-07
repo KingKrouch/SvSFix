@@ -8,7 +8,7 @@ public class CustomMapUnitController : MapUnitCollisionCharacterControllerCompon
     private TransformInterpolator transformInterpolator;
     private void Start()
     {
-        if (SvSFix._bUseDeltaTimeForMovement.Value) {
+        if (!SvSFix._bUseDeltaTimeForMovement.Value) {
             transformInterpolator = gameObject.AddComponent<TransformInterpolator>();
         }
     }
@@ -40,16 +40,12 @@ public class CustomMapUnitController : MapUnitCollisionCharacterControllerCompon
     
     private void FixedUpdate()
     {
-        if (SvSFix._bUseDeltaTimeForMovement.Value) { // This should allow us to adjust our desired movement mode.
-            return;
-        }
+        if (SvSFix._bUseDeltaTimeForMovement.Value) { return; } // This should allow us to adjust our desired movement mode.
         MovementUpdate();
     }
     private void Update()
     {
-        if (!SvSFix._bUseDeltaTimeForMovement.Value) { // This should allow us to adjust our desired movement mode.
-            return;
-        }
+        if (!SvSFix._bUseDeltaTimeForMovement.Value) { return; } // This should allow us to adjust our desired movement mode.
         MovementUpdate();
     }
 }
@@ -58,7 +54,7 @@ public class CustomRigidBodyController : MapUnitCollisionRigidbodyComponent
     private TransformInterpolator transformInterpolator;
     private void Start()
     {
-        if (SvSFix._bUseDeltaTimeForMovement.Value) {
+        if (!SvSFix._bUseDeltaTimeForMovement.Value) {
             transformInterpolator = gameObject.AddComponent<TransformInterpolator>();
         }
     }
@@ -89,18 +85,12 @@ public class CustomRigidBodyController : MapUnitCollisionRigidbodyComponent
     
     private void FixedUpdate()
     {
-        if (SvSFix._bUseDeltaTimeForMovement.Value)
-        {
-            return;
-        }
+        if (SvSFix._bUseDeltaTimeForMovement.Value) { return; }
         MovementUpdate();
     }
     private void Update()
     {
-        if (!SvSFix._bUseDeltaTimeForMovement.Value)
-        {
-            return;
-        }
+        if (!SvSFix._bUseDeltaTimeForMovement.Value) { return; }
         MovementUpdate();
         // TODO: Give the player the option between Delta Time and Interpolation Ticks for Character Movement.
     }
