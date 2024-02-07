@@ -11,7 +11,12 @@
 /[Mm]emoryCaptures/
 
 # Ignore Compiled Binaries
-/BepInEx_Project/bin
+/BepInEx_Project/bin/
+/BepInEx_Project/obj/
+!/BepInEx_Project/bin/Debug/netstandard2.1/pdb2mdb.exe
+
+# Ignore Unity Project Files
+/Content_Project/Library/
 
 # Asset meta data should only be ignored when the corresponding asset is also ignored
 !/[Aa]ssets/**/*.meta
