@@ -184,25 +184,32 @@ namespace SvSFix
                             var inputTypeP1 = SteamInput.GetInputTypeForHandle(advInputMgrComponent.inputHandles[0]);
                             switch (inputTypeP1){
                                 case ESteamInputType.k_ESteamInputType_XBox360Controller:
-                                    __result = true;
+                                    _bJapaneseControllerLayout.Value = false;
+                                    __result                         = true;
                                     return true;
                                 case ESteamInputType.k_ESteamInputType_XBoxOneController:
-                                    __result = true;
+                                    _bJapaneseControllerLayout.Value = false;
+                                    __result                         = true;
                                     return true;
                                 case ESteamInputType.k_ESteamInputType_GenericGamepad:
-                                    __result = true;
+                                    _bJapaneseControllerLayout.Value = false;
+                                    __result                         = true;
                                     return true;
                                 case ESteamInputType.k_ESteamInputType_SwitchJoyConPair:
-                                    __result = false;
+                                    _bJapaneseControllerLayout.Value = true;
+                                    __result                         = false;
                                     return false;
                                 case ESteamInputType.k_ESteamInputType_SwitchJoyConSingle:
-                                    __result = false;
+                                    _bJapaneseControllerLayout.Value = true;
+                                    __result                         = false;
                                     return false;
                                 case ESteamInputType.k_ESteamInputType_SwitchProController:
-                                    __result = false;
+                                    _bJapaneseControllerLayout.Value = true;
+                                    __result                         = false;
                                     return false;
                                 case ESteamInputType.k_ESteamInputType_SteamDeckController:
-                                    __result = true;
+                                    _bJapaneseControllerLayout.Value = false;
+                                    __result                         = true;
                                     return true;
                                 default:
                                     break;
@@ -215,10 +222,12 @@ namespace SvSFix
                     if (UnityEngine.InputSystem.Gamepad.all[0].device != null) {
                         switch (UnityEngine.InputSystem.Gamepad.all[0].device) {
                             case SwitchProControllerHID:
-                                __result = false;
+                                _bJapaneseControllerLayout.Value = true;
+                                __result                         = false;
                                 return false;
                             case XInputControllerWindows:
-                                __result = true;
+                                _bJapaneseControllerLayout.Value = false;
+                                __result                         = true;
                                 return true;
                         }
                     }
@@ -290,7 +299,7 @@ namespace SvSFix
                             _ => original
                         };
                         // We are going to do the enter and back things separately, as according to the Japanese layout.
-                        result = LibInput.IsConfirmButtonX switch {
+                        result = _bJapaneseControllerLayout.Value switch {
                             true => icon switch {
                                 EnumIcon.PAD_ENTER => Glyphs.GlyphB,
                                 EnumIcon.PAD_BACK  => Glyphs.GlyphA,
@@ -355,7 +364,7 @@ namespace SvSFix
                                         _                       => original
                                     };
                                     // Japanese Layout Check.
-                                    result = LibInput.IsConfirmButtonX switch {
+                                    result = _bJapaneseControllerLayout.Value switch {
                                         true => icon switch {
                                             EnumIcon.PAD_ENTER => PS5Prompt.GetSprite("button_maru"),
                                             EnumIcon.PAD_BACK  => PS5Prompt.GetSprite("button_batu"),
@@ -416,7 +425,7 @@ namespace SvSFix
                                         _                       => original
                                     };
                                     // Japanese Layout Check.
-                                    result = LibInput.IsConfirmButtonX switch {
+                                    result = _bJapaneseControllerLayout.Value switch {
                                         true => icon switch {
                                             EnumIcon.PAD_ENTER => PS4Prompt.GetSprite("button_maru"),
                                             EnumIcon.PAD_BACK  => PS4Prompt.GetSprite("button_batu"),
