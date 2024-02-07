@@ -69,6 +69,7 @@ namespace SvSFix
 
     public partial class SvSFix
     {
+        
         [HarmonyPatch]
         public class InputPatches
         {
@@ -85,8 +86,8 @@ namespace SvSFix
             public static GameObject advInputMgrObject;
             public static InputManager advInputMgrComponent;
             
-            public static SpriteAtlas iconInputPS4;
-            public static SpriteAtlas iconInputPS5;
+            static GameUiIcon.Input PS4Prompt = new GameUiIcon.Input();
+            static GameUiIcon.Input PS5Prompt = new GameUiIcon.Input();
             
             private static void SearchForAB()
             {
@@ -113,57 +114,23 @@ namespace SvSFix
                 }
             }
             
-            private static void LoadSpriteAtlas()
+            // Interestingly, when using a debug build, BepInEx just completely shits itself. I need to find out how to fix that. :-(
+            [HarmonyPatch(typeof(GameUiGlobalResource), "Load")]
+            [HarmonyPostfix]
+            public static void LoadPSInputPrompts(GameUiGlobalResource __instance)
             {
-                // Get all loaded AssetBundles
-                var loadedAssetBundles = AssetBundle.GetAllLoadedAssetBundles();
-                // Define the name of the AssetBundle you want to access
-                const string targetAssetBundleName = "interfaceglobal_assets_all.bundle";
-                // Find the target AssetBundle by its name
-                var targetAssetBundle = loadedAssetBundles.FirstOrDefault(assetBundle => assetBundle.name == targetAssetBundleName);
-                // Check if the target AssetBundle was found
-                if (targetAssetBundle != null) {
-                    // Load assets from the target AssetBundle
-                    iconInputPS4 = targetAssetBundle.LoadAsset<SpriteAtlas>("icon_input_PS4");
-                    iconInputPS5 = targetAssetBundle.LoadAsset<SpriteAtlas>("icon_input_PS5");
-                    // Now you can use iconInputPS4 and iconInputPS5 as needed
-                }
-                else {
-                    // Try loading it into memory manually.
-                    var assetBundlePath = Path.Combine(Application.streamingAssetsPath, "aa", "StandaloneWindows64", targetAssetBundleName);
-                    var targetAssetBundleNew = AssetBundle.LoadFromFile(assetBundlePath);
-                    if (targetAssetBundleNew != null) {
-                        iconInputPS4 = targetAssetBundleNew.LoadAsset<SpriteAtlas>("icon_input_PS4");
-                        iconInputPS5 = targetAssetBundleNew.LoadAsset<SpriteAtlas>("icon_input_PS5");
-                    }
-                    else
-                    {
-                        // Try to manually load them.
-                        iconInputPS4 = Resources.Load<SpriteAtlas>($"Assets/Project/AppData/Game/Interface/Icon/icon_input_PS4");
-                        iconInputPS5 = Resources.Load<SpriteAtlas>($"Assets/Project/AppData/Game/Interface/Icon/icon_input_PS5");
-                        if (iconInputPS4 == null || iconInputPS5 == null) {
-                            Debug.LogError("Failed to load AssetBundle: " + assetBundlePath);
-                        }
-                    }
-                }
+                // Load the SpriteAtlases for the PS4/PS5 button prompts already in the game.
+                PS4Prompt.Load("Assets/Project/AppData/Game/Interface/Icon/icon_input_PS4.spriteatlas");
+                PS5Prompt.Load("Assets/Project/AppData/Game/Interface/Icon/icon_input_PS5.spriteatlas");
             }
 
-            [HarmonyPatch(typeof(Game.UI.Global.Resource.GameUiGlobalResource), nameof(Game.UI.Global.Resource.GameUiGlobalResource))]
-            public static void Load(Game.UI.Global.Resource.GameUiGlobalResource __instance)
+            [HarmonyPatch(typeof(GameUiGlobalResource), "Exec")]
+            [HarmonyPostfix]
+            public static void SetupPSInputPrompts(GameUiGlobalResource __instance)
             {
-                //if (__instance.IconInput == null)
-                //{
-                    //__instance.IconInput = new GameUiIcon.Input();
-                    //__instance.IconInput?.Load("Assets/Project/AppData/Game/Interface/Icon/icon_input_PC.spriteatlas");
-                //}
+                PS4Prompt.Setup();
+                PS5Prompt.Setup();
             }
-
-            //private static AssetBundle spriteAssetBundle = AssetBundle.LoadFromFile(Path.Combine(Application.streamingAssetsPath, "aa", "StandaloneWindows64", "interfaceglobal_assets_all.bundle"));
-            //public static SpriteAtlas iconInputPS4 = spriteAssetBundle.LoadAsset<SpriteAtlas>("Assets/Project/AppData/Game/Interface/Icon/icon_input_PS4");
-            //public static SpriteAtlas iconInputPS5 = spriteAssetBundle.LoadAsset<SpriteAtlas>("Assets/Project/AppData/Game/Interface/Icon/icon_input_PS5");
-
-            //public static SpriteAtlas iconInputPS4 = Resources.Load($"Assets/Project/AppData/Game/Interface/Icon/icon_input_PS4") as SpriteAtlas;
-            //public static SpriteAtlas iconInputPS5 = Resources.Load($"Assets/Project/AppData/Game/Interface/Icon/icon_input_PS5") as SpriteAtlas;
 
             // So both GameInput and World Manager seemingly have stuff that toggles the mouse cursor.
             [HarmonyPatch(typeof(GameInput), nameof(GameInput.RenewMouseCursorVisible))]
@@ -273,22 +240,22 @@ namespace SvSFix
                     }
                     else {
                         if (UnityEngine.InputSystem.Gamepad.all[0].device == null) return result;
-                        if (iconInputPS5 == null || iconInputPS4 == null) {
-                            LoadSpriteAtlas();
+                        if (PS5Prompt == null || PS4Prompt == null) {
+                            return original;
                         }
                         switch (UnityEngine.InputSystem.Gamepad.all[0].device)
                         {
                             case DualSenseGamepadHID: // TODO: Fix broken null references, so there's no errors with loading sprites.
-                                if (iconInputPS5 != null)
+                                if (PS5Prompt != null)
                                 {
                                     result = icon switch
                                     {
-                                        EnumIcon.PAD_ENTER      => iconInputPS5.GetSprite("button_batu"),
-                                        EnumIcon.PAD_BACK       => iconInputPS5.GetSprite("button_maru"),
-                                        EnumIcon.PAD_BUTTON_L   => iconInputPS5.GetSprite("button_sikaku"),
-                                        EnumIcon.PAD_BUTTON_U   => iconInputPS5.GetSprite("button_sankaku"),
-                                        EnumIcon.PAD_BUTTON_R   => iconInputPS5.GetSprite("button_maru"),
-                                        EnumIcon.PAD_BUTTON_D   => iconInputPS5.GetSprite("button_batu"),
+                                        EnumIcon.PAD_ENTER      => PS5Prompt.GetSprite("button_batu"),
+                                        EnumIcon.PAD_BACK       => PS5Prompt.GetSprite("button_maru"),
+                                        EnumIcon.PAD_BUTTON_L   => PS5Prompt.GetSprite("button_sikaku"),
+                                        EnumIcon.PAD_BUTTON_U   => PS5Prompt.GetSprite("button_sankaku"),
+                                        EnumIcon.PAD_BUTTON_R   => PS5Prompt.GetSprite("button_maru"),
+                                        EnumIcon.PAD_BUTTON_D   => PS5Prompt.GetSprite("button_batu"),
                                         EnumIcon.PAD_MOVE       => original,
                                         EnumIcon.PAD_MOVE_ALL   => original,
                                         EnumIcon.PAD_MOVE_L     => original,
@@ -297,12 +264,12 @@ namespace SvSFix
                                         EnumIcon.PAD_MOVE_D     => original,
                                         EnumIcon.PAD_MOVE_LR    => original,
                                         EnumIcon.PAD_MOVE_UD    => original,
-                                        EnumIcon.PAD_L1         => iconInputPS5.GetSprite("L1"),
-                                        EnumIcon.PAD_R1         => iconInputPS5.GetSprite("R1"),
-                                        EnumIcon.PAD_L2         => iconInputPS5.GetSprite("L2"),
-                                        EnumIcon.PAD_R2         => iconInputPS5.GetSprite("R2"),
-                                        EnumIcon.PAD_L3         => iconInputPS5.GetSprite("L3"),
-                                        EnumIcon.PAD_R3         => iconInputPS5.GetSprite("R3"),
+                                        EnumIcon.PAD_L1         => PS5Prompt.GetSprite("L1"),
+                                        EnumIcon.PAD_R1         => PS5Prompt.GetSprite("R1"),
+                                        EnumIcon.PAD_L2         => PS5Prompt.GetSprite("L2"),
+                                        EnumIcon.PAD_R2         => PS5Prompt.GetSprite("R2"),
+                                        EnumIcon.PAD_L3         => PS5Prompt.GetSprite("L3"),
+                                        EnumIcon.PAD_R3         => PS5Prompt.GetSprite("R3"),
                                         EnumIcon.PAD_L_STICK    => original,
                                         EnumIcon.PAD_L_STICK_L  => original,
                                         EnumIcon.PAD_L_STICK_U  => original,
@@ -317,12 +284,12 @@ namespace SvSFix
                                         EnumIcon.PAD_R_STICK_D  => original,
                                         EnumIcon.PAD_R_STICK_LR => original,
                                         EnumIcon.PAD_R_STICK_UD => original,
-                                        EnumIcon.PAD_CREATE     => iconInputPS5.GetSprite("create"),
-                                        EnumIcon.PAD_OPTIONS    => iconInputPS5.GetSprite("options"),
-                                        EnumIcon.PAD_TOUCH      => iconInputPS5.GetSprite("touch"),
-                                        EnumIcon.PAD_SELECT     => iconInputPS5.GetSprite("touch"),
-                                        EnumIcon.PAD_START      => iconInputPS5.GetSprite("start"),
-                                        _ => original
+                                        EnumIcon.PAD_CREATE     => PS5Prompt.GetSprite("create"),
+                                        EnumIcon.PAD_OPTIONS    => PS5Prompt.GetSprite("options"),
+                                        EnumIcon.PAD_TOUCH      => PS5Prompt.GetSprite("touch"),
+                                        EnumIcon.PAD_SELECT     => PS5Prompt.GetSprite("touch"),
+                                        EnumIcon.PAD_START      => PS5Prompt.GetSprite("start"),
+                                        _                       => original
                                     };
                                 }
                                 else { result = original; }
@@ -331,14 +298,14 @@ namespace SvSFix
                                 result = original;
                                 break;
                             case DualShock4GamepadHID:
-                                if (iconInputPS4 != null) {
+                                if (PS4Prompt != null) {
                                     result = icon switch {
-                                        EnumIcon.PAD_ENTER      => iconInputPS4.GetSprite("button_batu"),
-                                        EnumIcon.PAD_BACK       => iconInputPS4.GetSprite("button_maru"),
-                                        EnumIcon.PAD_BUTTON_L   => iconInputPS4.GetSprite("button_sikaku"),
-                                        EnumIcon.PAD_BUTTON_U   => iconInputPS4.GetSprite("button_sankaku"),
-                                        EnumIcon.PAD_BUTTON_R   => iconInputPS4.GetSprite("button_maru"),
-                                        EnumIcon.PAD_BUTTON_D   => iconInputPS4.GetSprite("button_batu"),
+                                        EnumIcon.PAD_ENTER      => PS4Prompt.GetSprite("button_batu"),
+                                        EnumIcon.PAD_BACK       => PS4Prompt.GetSprite("button_maru"),
+                                        EnumIcon.PAD_BUTTON_L   => PS4Prompt.GetSprite("button_sikaku"),
+                                        EnumIcon.PAD_BUTTON_U   => PS4Prompt.GetSprite("button_sankaku"),
+                                        EnumIcon.PAD_BUTTON_R   => PS4Prompt.GetSprite("button_maru"),
+                                        EnumIcon.PAD_BUTTON_D   => PS4Prompt.GetSprite("button_batu"),
                                         EnumIcon.PAD_MOVE       => original,
                                         EnumIcon.PAD_MOVE_ALL   => original,
                                         EnumIcon.PAD_MOVE_L     => original,
@@ -347,12 +314,12 @@ namespace SvSFix
                                         EnumIcon.PAD_MOVE_D     => original,
                                         EnumIcon.PAD_MOVE_LR    => original,
                                         EnumIcon.PAD_MOVE_UD    => original,
-                                        EnumIcon.PAD_L1         => iconInputPS4.GetSprite("L1"),
-                                        EnumIcon.PAD_R1         => iconInputPS4.GetSprite("R1"),
-                                        EnumIcon.PAD_L2         => iconInputPS4.GetSprite("L2"),
-                                        EnumIcon.PAD_R2         => iconInputPS4.GetSprite("R2"),
-                                        EnumIcon.PAD_L3         => iconInputPS4.GetSprite("L3"),
-                                        EnumIcon.PAD_R3         => iconInputPS4.GetSprite("R3"),
+                                        EnumIcon.PAD_L1         => PS4Prompt.GetSprite("L1"),
+                                        EnumIcon.PAD_R1         => PS4Prompt.GetSprite("R1"),
+                                        EnumIcon.PAD_L2         => PS4Prompt.GetSprite("L2"),
+                                        EnumIcon.PAD_R2         => PS4Prompt.GetSprite("R2"),
+                                        EnumIcon.PAD_L3         => PS4Prompt.GetSprite("L3"),
+                                        EnumIcon.PAD_R3         => PS4Prompt.GetSprite("R3"),
                                         EnumIcon.PAD_L_STICK    => original,
                                         EnumIcon.PAD_L_STICK_L  => original,
                                         EnumIcon.PAD_L_STICK_U  => original,
@@ -367,12 +334,12 @@ namespace SvSFix
                                         EnumIcon.PAD_R_STICK_D  => original,
                                         EnumIcon.PAD_R_STICK_LR => original,
                                         EnumIcon.PAD_R_STICK_UD => original,
-                                        EnumIcon.PAD_CREATE     => iconInputPS4.GetSprite("share"), // The big difference is the use of "share" instead of "create"
-                                        EnumIcon.PAD_OPTIONS    => iconInputPS4.GetSprite("options"),
-                                        EnumIcon.PAD_TOUCH      => iconInputPS4.GetSprite("touch"),
-                                        EnumIcon.PAD_SELECT     => iconInputPS4.GetSprite("touch"),
-                                        EnumIcon.PAD_START      => iconInputPS4.GetSprite("start"),
-                                        _ => original
+                                        EnumIcon.PAD_CREATE     => PS4Prompt.GetSprite("share"), // The big difference is the use of "share" instead of "create"
+                                        EnumIcon.PAD_OPTIONS    => PS4Prompt.GetSprite("options"),
+                                        EnumIcon.PAD_TOUCH      => PS4Prompt.GetSprite("touch"),
+                                        EnumIcon.PAD_SELECT     => PS4Prompt.GetSprite("touch"),
+                                        EnumIcon.PAD_START      => PS4Prompt.GetSprite("start"),
+                                        _                       => original
                                     };
                                 }
                                 else { result = original; }
