@@ -79,7 +79,7 @@ namespace SvSFix
             // 3. Rebind the mouse buttons (unless a menu is open) to Primary Attack and Secondary Attack respectively in battle.
             // 4. Hide the mouse cursor in battles and dungeons unless a menu is open.
             // 5. Set up better rebinding defaults and investigate mouse (including mouse wheel) rebinding.
-            // 6. Investigate adding hooks for individual sprites to load PlayStation or Switch equivalents if SteamInput is disabled (or returns a unknown controller type).
+            // 6. Investigate adding Switch button prompts when using native controller support.
             // 7. Implement an option that allows reversing Cross/Circle in menus, enabled by default on Nintendo Switch controllers.
             // 8. Get Simultaneous KB/M + Controller input working, so the Steam Deck and Steam Controller trackpads are accounted for.
 
@@ -245,7 +245,7 @@ namespace SvSFix
                         }
                         switch (UnityEngine.InputSystem.Gamepad.all[0].device)
                         {
-                            case DualSenseGamepadHID: // TODO: Fix broken null references, so there's no errors with loading sprites.
+                            case DualSenseGamepadHID:
                                 if (PS5Prompt != null)
                                 {
                                     result = icon switch
