@@ -110,30 +110,10 @@ public partial class SvSFix
         
         // Misc Config
         public static ConfigEntry<bool> _bSkipSplashScreenSequence; // True: Skips Opening Splash Screen Logos and Movie, False: Default Behavior.
-
+        public static ConfigEntry<bool> _bDisableSteamEnhancements; // True: Disables Steam specific enhancements like photo mode screenshot hooks, False: Keeps those features enabled.
+        
         private void InitConfig()
         {
-            // Load Content AssetBundle.
-            switch (File.Exists(path)) {
-                case true:
-                    blackBarControllerBundle = AssetBundle.LoadFromFile(path);
-                    loadedAssetBundle        = true;
-                    break;
-                case false:
-                    Debug.LogError("SvSFix Content AssetBundle was unable to be loaded. Any Black Bar patches will be disabled.");
-                    break;
-            }
-            
-            // Check if game is the GOG release.
-            switch (File.Exists(@"neptunia-sisters-vs-sisters_Data\Plugins\x86_64\Galaxy64.dll")) {
-                case true:
-                    // Set GOG version as being used, disable SteamInput and Steam enhancements.
-                    break;
-                case false:
-                    // Using Steam version of the game.
-                    break;
-            }
-            
             // Aspect Ratio Config
             _bOriginalUIAspectRatio                   = Config.Bind("Resolution", "Original UI Aspect Ratio",                   true,  "On: Presents UI aspect ratio at 16:9 screen space, Off: Spanned UI.");
             _bMajorAxisFOVScaling                     = Config.Bind("Resolution", "Major-Axis FOV Scaling",                     true,  "On: Vert- Behavior below 16:9, Off: Default Hor+ Behavior.");
@@ -204,6 +184,36 @@ public partial class SvSFix
             
             // Misc Config
             _bSkipSplashScreenSequence = Config.Bind("Misc", "Skip Splash Screens and Opening Video", false, "True: Skips Splash Screen and Opening Videos for faster startup times, False: Default Functionality.");
+            _bDisableSteamEnhancements = Config.Bind("Misc", "Disable Steam Enhancements",            false, "True: Disables Steam specific enhancements like photo mode screenshot hooks, False: Keeps those features enabled.");
+            FileChecks();
+        }
+
+        private static void FileChecks()
+        {
+            // Load Content AssetBundle.
+            switch (File.Exists(path)) {
+                case true:
+                    blackBarControllerBundle = AssetBundle.LoadFromFile(path);
+                    loadedAssetBundle        = true;
+                    break;
+                case false:
+                    Debug.LogError("SvSFix Content AssetBundle was unable to be loaded. Any Black Bar patches will be disabled.");
+                    break;
+            }
+            
+            // Check if game is the GOG release.
+            switch (File.Exists(@"neptunia-sisters-vs-sisters_Data\Plugins\x86_64\Galaxy64.dll")) {
+                case true:
+                    // Set GOG version as being used, disable SteamInput and Steam enhancements.
+                    _bDisableSteamInput.Value        = false;
+                    _bDisableSteamEnhancements.Value = true;
+                    Debug.Log("Found GOG release of Neptunia SvS. Disabling Steam enhancements.");
+                    break;
+                case false:
+                    // Using Steam version of the game.
+                    Debug.Log("Found Steam release of Neptunia SvS. Keeping settings as-is.");
+                    break;
+            }
         }
         
         private static void LoadGraphicsSettings()

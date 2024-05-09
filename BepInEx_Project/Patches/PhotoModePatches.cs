@@ -30,6 +30,7 @@ namespace SvSFix
             [HarmonyPrefix]
             public static bool SteamScreenshotHook(ref Camera target_camera, ref Vector2Int resolution)
             {
+                if (_bDisableSteamEnhancements.Value) return true;
                 bool initialized = SteamworksAccessor.IsSteamworksReady;
                 if (initialized)
                 {
