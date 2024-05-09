@@ -327,12 +327,13 @@ public partial class SvSFix
             if (_blackBarActorWorldMapComponent != null) {
                 _createdBlackBarActorInWorldMap = true;
             }
+
         }
             
         public static GameObject CreateBlackBars(GameObject parent)
         {
             // Creates our BlackBarController prefab by hooking into Unity's AssetBundles system.
-            if (blackBarControllerBundle != null) {
+            if (blackBarControllerBundle != null && loadedAssetBundle) {
                 var names = blackBarControllerBundle.GetAllAssetNames();
                 Debug.Log(blackBarControllerBundle.GetAllAssetNames());
                 var prefab = blackBarControllerBundle.LoadAsset<GameObject>(names[0]);

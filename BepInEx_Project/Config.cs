@@ -2,6 +2,7 @@
 using BepInEx.Configuration;
 // Unity and System Stuff
 using System;
+using System.IO;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -64,8 +65,9 @@ public partial class SvSFix
             };
         }
 
-        private static string path = @"BepInEx\content\svsfix_content";
-        public static AssetBundle blackBarControllerBundle = AssetBundle.LoadFromFile(path);
+        private static string      path                     = @"BepInEx\content\svsfix_content";
+        public static  AssetBundle blackBarControllerBundle = new AssetBundle();
+        public static  bool        loadedAssetBundle        = false;
         
         public static bool restrictAdvUiTo16x9 = true;
 
@@ -108,9 +110,30 @@ public partial class SvSFix
         
         // Misc Config
         public static ConfigEntry<bool> _bSkipSplashScreenSequence; // True: Skips Opening Splash Screen Logos and Movie, False: Default Behavior.
-        
+
         private void InitConfig()
         {
+            // Load Content AssetBundle.
+            switch (File.Exists(path)) {
+                case true:
+                    blackBarControllerBundle = AssetBundle.LoadFromFile(path);
+                    loadedAssetBundle        = true;
+                    break;
+                case false:
+                    Debug.LogError("SvSFix Content AssetBundle was unable to be loaded. Any Black Bar patches will be disabled.");
+                    break;
+            }
+            
+            // Check if game is the GOG release.
+            switch (File.Exists(@"neptunia-sisters-vs-sisters_Data\Plugins\x86_64\Galaxy64.dll")) {
+                case true:
+                    // Set GOG version as being used, disable SteamInput and Steam enhancements.
+                    break;
+                case false:
+                    // Using Steam version of the game.
+                    break;
+            }
+            
             // Aspect Ratio Config
             _bOriginalUIAspectRatio                   = Config.Bind("Resolution", "Original UI Aspect Ratio",                   true,  "On: Presents UI aspect ratio at 16:9 screen space, Off: Spanned UI.");
             _bMajorAxisFOVScaling                     = Config.Bind("Resolution", "Major-Axis FOV Scaling",                     true,  "On: Vert- Behavior below 16:9, Off: Default Hor+ Behavior.");

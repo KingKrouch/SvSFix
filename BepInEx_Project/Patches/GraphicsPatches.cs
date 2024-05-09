@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.Rendering.Universal;
 using System.Reflection;
 using Game.UI.Title;
+using IF.URP;
 
 namespace SvSFix;
 
@@ -40,6 +41,9 @@ public partial class SvSFix
                 }
             }
         }
+        
+        // TODO: Hook type UnityEngine.Rendering.VolumeProfile, check if the name has "PostProcess_System" in it, and you can then enable post-process effects there.
+        // Look into adding gameplay depth of field, and motion blur toggles.
 
         // Enable (or disable SSAO) based on if a map or a cutscene is being loaded.
         [HarmonyPatch(typeof(MapPlay), nameof(MapPlay.SetUp))]
@@ -48,6 +52,23 @@ public partial class SvSFix
         {
             ToggleSSAO(_screenSpaceAmbientOcclusion.Value);
             _log.LogInfo("Loading Map");
+        }
+        
+        // Fix aggressive looking shadow cascade cutoffs with one simple trick.
+        [HarmonyPatch(typeof(Light), MethodType.Constructor)]
+        [HarmonyPostfix]
+        public static void FixCascadeCutoff(Light __instance)
+        {
+            // Check if the light is a directional light
+            if (__instance.type != LightType.Directional) return;
+            // Quick log to tell us that this is working properly.
+            _log.LogInfo("Patching directional light to help combat cascade cutoffs.");
+            // Get the current rotation of the light
+            var currentRotation = __instance.transform.rotation;
+            // Set the Z-axis rotation to 0 while preserving the X and Y rotations
+            var newRotation = Quaternion.Euler(currentRotation.eulerAngles.x, currentRotation.eulerAngles.y, 0f);
+            // Apply the new rotation to the light
+            __instance.transform.rotation = newRotation;
         }
         
         // Disable SSAO based on if on the title screen, or when a map or cutscene is unloaded.
