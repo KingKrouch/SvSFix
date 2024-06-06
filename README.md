@@ -42,7 +42,7 @@ You will need to append this to the beginning of the game's launch options befor
 
 As of right now, the GOG release of the game is unsupported. There are plans to eventually support it once I have the mod feature complete, and when I eventually port it to work with the IL2CPP build of the game.
 
-### Special Thanks To:
+## Special Thanks To:
 
 [Lyall](https://github.com/Lyall), [eevbb](https://github.com/eevbb), and [PhantomGamers](https://github.com/PhantomGamers) for advice relating to BepInEx and Unity modding.
 
