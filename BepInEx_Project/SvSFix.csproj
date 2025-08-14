@@ -18,6 +18,11 @@
     <DebugType>full</DebugType>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- This is where the game's install directory is. -->
+    <InstallDir>N:\Steam\steamapps\common\Neptunia Sisters VS Sisters</InstallDir>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.Core" Version="5.*" />
@@ -61,6 +66,6 @@
   </ItemGroup>
   
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="&quot;$(TargetDir)pdb2mdb.exe&quot; &quot;$(TargetDir)$(ProjectName).dll&quot;&#xA;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).dll&quot; &quot;C:\Steam\steamapps\common\Neptunia Sisters VS Sisters\BepInEx\plugins&quot;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).dll.mdb&quot; &quot;C:\Steam\steamapps\common\Neptunia Sisters VS Sisters\BepInEx\plugins&quot;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).pdb&quot; &quot;C:\Steam\steamapps\common\Neptunia Sisters VS Sisters\BepInEx\plugins&quot;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).deps.json&quot; &quot;C:\Steam\steamapps\common\Neptunia Sisters VS Sisters\BepInEx\plugins&quot;" />
+    <Exec Command="&quot;$(TargetDir)pdb2mdb.exe&quot; &quot;$(TargetDir)$(ProjectName).dll&quot;&#xA;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).dll&quot; &quot;$(InstallDir)\BepInEx\plugins&quot;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).dll.mdb&quot; &quot;$(InstallDir)\BepInEx\plugins&quot;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).pdb&quot; &quot;$(InstallDir)\BepInEx\plugins&quot;&#xA;copy /Y &quot;$(TargetDir)$(ProjectName).deps.json&quot; &quot;$(InstallDir)\BepInEx\plugins&quot;" />
   </Target>
 </Project>
