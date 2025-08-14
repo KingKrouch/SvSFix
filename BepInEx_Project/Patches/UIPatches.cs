@@ -43,6 +43,7 @@ public partial class SvSFix
         // 7. For some reason, when ADVs start, it does some really funny stuff with the screen aspect ratio. Try and investigate this, and have it use a 16:9 scale regardless of the resolution at the start.
         // 8. Adjust the AdvInterface elements to fit to a 16:9 aspect ratio portion on-screen. For some reason, it grows bigger the narrower the aspect ratio.
         // 9. Adjust the positions of UI elements in Dungeons and Battles based on if the user wants a spanned or centered UI.
+        // 10. For some reason, the minimap camera is not in the center of the screen after using the AspectRatioFitter, it's skewed towards the left side of the screen. Pls fix.
         private const  float             OriginalAspectRatio            = 1.7777778f;
         private static float             _newSizeX                      = 3840f;
         private static float             _newSizeY                      = 2160f;
@@ -59,7 +60,8 @@ public partial class SvSFix
         {
             return Screen.currentResolution.width / Screen.currentResolution.height;
         }
-        
+
+        // TODO: This option is seemingly responsible for freezing occuring when applying graphics settings or exiting to the main menu.
         [HarmonyPatch(typeof(SplashSequenceManager), nameof(SplashSequenceManager.Initialize))]
         [HarmonyPrefix]
         public static bool SkipSplashLogos()
@@ -188,7 +190,8 @@ public partial class SvSFix
             FixFrame2(__instance);
             FixFrame3(__instance);
         }
-            
+
+        // TODO: There's something very wrong with this.
         public static void FixFrame0(GameUiKeyAssign keyAssign)
         {
             if (keyAssign != null) {

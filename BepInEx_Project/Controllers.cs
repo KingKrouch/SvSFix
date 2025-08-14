@@ -13,6 +13,7 @@ public class CustomMapUnitController : MapUnitCollisionCharacterControllerCompon
         }
     }
 
+    // TODO: Fix the weird rubber banding issues and strange teleporting glitches.
     private void MovementUpdate()
     {
         if (this.collision_ == null || this.character_controller_ == null || this.collision_.IsCollisionInvalid()) {

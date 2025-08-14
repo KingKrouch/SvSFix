@@ -225,6 +225,7 @@ namespace SvSFix
                 __result = GetGlyph(icon, __result);
             }
 
+            // TODO: Figure out why SteamInput wont show any prompts anymore. It used to work.
             static Sprite GetGlyph(EnumIcon icon, Sprite original) // TODO: Figure out why the keyboard prompt square after switching from controller input disappears.
             {
                 var result = new Sprite();
