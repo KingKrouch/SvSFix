@@ -5,6 +5,7 @@
     "com.unity.addressables": "1.19.19",
     "com.unity.ads": "3.7.5",
     "com.unity.analytics": "3.6.12",
+    "com.unity.assetbundlebrowser": "https://github.com/Unity-Technologies/AssetBundles-Browser.git",
     "com.unity.burst": "1.6.6",
     "com.unity.collab-proxy": "1.15.7",
     "com.unity.collections": "1.4.0",
