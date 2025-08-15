@@ -1,0 +1,52 @@
+<linker>
+ <assembly fullname="Unity.Burst">
+  <type fullname="Unity.Burst.LowLevel.BurstCompilerService">
+   <method name="GetOrCreateSharedMemory"/>
+  </type>
+ </assembly>
+ <assembly fullname="Unity.Collections">
+  <type fullname="Unity.Collections.AllocatorManager.SharedStatics.TableEntry">
+   <method name=".cctor"/>
+  </type>
+  <type fullname="Unity.Collections.LowLevel.Unsafe.UnsafeUtility">
+   <method name="Malloc"/>
+  </type>
+  <type fullname="Unity.Collections.LowLevel.Unsafe.UnsafeUtility">
+   <method name="Free"/>
+  </type>
+ </assembly>
+ <assembly fullname="Unity.RenderPipelines.Universal.Runtime">
+  <type fullname="UnityEngine.Rendering.Universal.DecalUpdateCachedSystem.UpdateTransformsJob">
+   <method name=".cctor"/>
+  </type>
+ </assembly>
+ <assembly fullname="UnityEngine.CoreModule">
+  <type fullname="Unity.Jobs.LowLevel.Unsafe.JobsUtility">
+   <method name="GetWorkStealingRange"/>
+  </type>
+  <type fullname="Unity.Collections.LowLevel.Unsafe.UnsafeUtility">
+   <method name="Free"/>
+  </type>
+  <type fullname="Unity.Collections.LowLevel.Unsafe.UnsafeUtility">
+   <method name="Malloc"/>
+  </type>
+  <type fullname="UnityEngine.Jobs.TransformAccessArray">
+   <method name="GetSortedToUserIndex"/>
+  </type>
+  <type fullname="UnityEngine.Jobs.TransformAccessArray">
+   <method name="GetSortedTransformAccess"/>
+  </type>
+  <type fullname="UnityEngine.Jobs.TransformAccess">
+   <method name="GetPosition"/>
+  </type>
+  <type fullname="UnityEngine.Jobs.TransformAccess">
+   <method name="GetRotation"/>
+  </type>
+  <type fullname="UnityEngine.Jobs.TransformAccess">
+   <method name="GetLocalScale"/>
+  </type>
+  <type fullname="UnityEngine.Jobs.TransformAccess">
+   <method name="GetLocalToWorldMatrix"/>
+  </type>
+ </assembly>
+</linker>
