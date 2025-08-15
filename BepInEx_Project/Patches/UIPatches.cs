@@ -2,6 +2,7 @@
 using HarmonyLib;
 // Unity and System Stuff
 using System;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 // Game and Plugin Stuff
@@ -17,6 +18,7 @@ using Game.UI.MainMenu.Status;
 using Game.UI.MainMenu.Status.Parts;
 using Game.UI.PhotoMode;
 using Game.UI.SaveList;
+using Game.UI.Title;
 using Game.UI.World;
 using Game.UI.WorldMap.Local;
 using IF.ED;
@@ -70,6 +72,21 @@ public partial class SvSFix
                 true  => false,
                 false => true
             };
+        }
+
+        [HarmonyPatch(typeof(GameUiTitleTop), nameof(GameUiTitleTop.Open))]
+        [HarmonyPostfix]
+        public static void LoadSwitchVersionBackground(GameUiTitleTop __instance)
+        {
+            var SwitchBackground = LoadTitleBack();
+            if (SwitchBackground != null) {
+                var transform = __instance.transform.Find("Canvas/Root/Back");
+                if (transform == null) return;
+                var BackgroundImage = transform.gameObject.GetComponent<Image>();
+                if (BackgroundImage == null) return;
+                var newSprite = Sprite.Create(SwitchBackground, new Rect(0, 0, SwitchBackground.width, SwitchBackground.height), new Vector2(0.5f, 0.5f));
+                BackgroundImage.sprite = newSprite;
+            }
         }
         
         // TODO: Figure out why a black screen randomly flickers when on the title screen.
@@ -332,14 +349,50 @@ public partial class SvSFix
             }
 
         }
-            
+
+        public static Texture2D LoadTitleBack()
+        {
+            if (SvSFixContentBundle != null && loadedAssetBundle)
+            {
+                try {
+                    // Find asset that contains "TitleBack" (case-insensitive)
+                    var names = SvSFixContentBundle.GetAllAssetNames();
+                    var match = names.FirstOrDefault(n => n.IndexOf("TitleBack", StringComparison.OrdinalIgnoreCase) >= 0);
+
+                    if (match == null) {
+                        _log.LogError("No asset containing 'TitleBack' found in bundle.");
+                        return null;
+                    }
+
+                    _log.LogInfo($"Found TitleBack asset: {match}");
+                    var texture = SvSFixContentBundle.LoadAsset<Texture2D>(match);
+
+                    if (texture != null) {
+                        _log.LogInfo("Successfully loaded TitleBack texture.");
+                        return texture;
+                    }
+                    else {
+                        _log.LogError("Failed to load TitleBack texture.");
+                    }
+                }
+                catch (Exception ex) {
+                    _log.LogError($"Error loading TitleBack texture: {ex}");
+                }
+            }
+            else {
+                _log.LogError("AssetBundle not loaded — cannot load TitleBack.");
+            }
+            return null;
+        }
+
+        // TODO: Figure out how to retrofit this to allow loading a custom main menu background image (Like the one from Switch)
         public static GameObject CreateBlackBars(GameObject parent)
         {
             // Creates our BlackBarController prefab by hooking into Unity's AssetBundles system.
-            if (blackBarControllerBundle != null && loadedAssetBundle) {
-                var names = blackBarControllerBundle.GetAllAssetNames();
-                Debug.Log(blackBarControllerBundle.GetAllAssetNames());
-                var prefab = blackBarControllerBundle.LoadAsset<GameObject>(names[0]);
+            if (SvSFixContentBundle != null && loadedAssetBundle) {
+                var names = SvSFixContentBundle.GetAllAssetNames();
+                Debug.Log(SvSFixContentBundle.GetAllAssetNames());
+                var prefab = SvSFixContentBundle.LoadAsset<GameObject>(names[0]);
                 var blackBarController = Instantiate(prefab, parent.transform, true);
                 var controllerComponent = blackBarController.GetComponent<BlackBarController>();
                 //DontDestroyOnLoad(blackBarController);

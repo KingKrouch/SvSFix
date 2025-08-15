@@ -66,7 +66,7 @@ public partial class SvSFix
         }
 
         private static string      path                     = @"BepInEx\content\svsfix_content";
-        public static  AssetBundle blackBarControllerBundle = new AssetBundle();
+        public static  AssetBundle SvSFixContentBundle = new AssetBundle();
         public static  bool        loadedAssetBundle        = false;
         
         public static bool restrictAdvUiTo16x9 = true;
@@ -193,7 +193,7 @@ public partial class SvSFix
             // Load Content AssetBundle.
             switch (File.Exists(path)) {
                 case true:
-                    blackBarControllerBundle = AssetBundle.LoadFromFile(path);
+                    SvSFixContentBundle = AssetBundle.LoadFromFile(path);
                     loadedAssetBundle        = true;
                     break;
                 case false:
