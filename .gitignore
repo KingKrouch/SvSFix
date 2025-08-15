@@ -12,7 +12,11 @@
 
 # Ignore Compiled Binaries
 /BepInEx_Project/bin/
+/BepInEx_Project/bin/Debug/netstandard2.1/*.dll
 /BepInEx_Project/obj/
+/BepInEx_Project/obj/Debug/netstandard2.1/*.dll
+/BepInEx_Project/obj/Debug/netstandard2.1/*.cache
+/BepInEx_Project/obj/Debug/netstandard2.1/*.txt
 !/BepInEx_Project/bin/Debug/netstandard2.1/pdb2mdb.exe
 
 # Ignore Unity Project Files
@@ -61,4 +65,5 @@ sysinfo.txt
 
 # Crashlytics generated file
 crashlytics-build.properties
+
 
